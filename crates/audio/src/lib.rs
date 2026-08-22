@@ -190,45 +190,43 @@ impl AudioRecorder {
 
     pub fn stop_and_encode_wav(self) -> Result<Vec<u8>, AudioError> {
         self.is_recording.store(false, Ordering::SeqCst);
-        let raw_samples = self.audio_buffer.lock().unwrap().clone();
+        let mut raw_samples = self.audio_buffer.lock().unwrap().clone();
 
+        // Handle empty or very short buffers gracefully
         if raw_samples.is_empty() {
-            return Err(AudioError::EncodingError("No audio samples recorded".to_string()));
+            raw_samples = vec![0.0f32; 1600]; // 100ms silence
         }
 
         // Convert multi-channel to mono if needed
         let mono_samples: Vec<f32> = if self.source_channels > 1 {
             raw_samples
-                .chunks_exact(self.source_channels as usize)
-                .map(|chunk| chunk.iter().sum::<f32>() / self.source_channels as f32)
+                .chunks(self.source_channels as usize)
+                .map(|chunk| chunk.iter().sum::<f32>() / chunk.len() as f32)
                 .collect()
         } else {
             raw_samples
         };
 
-        // Check if audio has sufficient signal (silence detection)
+        // Peak Normalization / AGC: Scale quiet microphone audio to optimal Whisper amplitude (~0.80 peak)
         let max_abs = mono_samples
             .iter()
             .map(|s| s.abs())
             .fold(0.0f32, f32::max);
 
-        if max_abs < 0.0015 {
-            return Err(AudioError::EncodingError(
-                "Audio is silent. Please check your microphone input level and speak clearly.".to_string(),
-            ));
-        }
-
-        // Peak Normalization / AGC: Scale quiet microphone audio to optimal Whisper amplitude (~0.75 peak)
-        let target_peak = 0.75f32;
-        let gain = (target_peak / max_abs).clamp(1.0, 50.0);
-        let normalized_samples: Vec<f32> = mono_samples
-            .into_iter()
-            .map(|s| (s * gain).clamp(-1.0, 1.0))
-            .collect();
+        let normalized_samples: Vec<f32> = if max_abs > 0.0001 {
+            let target_peak = 0.80f32;
+            let gain = (target_peak / max_abs).clamp(1.0, 100.0);
+            mono_samples
+                .into_iter()
+                .map(|s| (s * gain).clamp(-1.0, 1.0))
+                .collect()
+        } else {
+            mono_samples
+        };
 
         // Resample to 16,000 Hz if needed (Whisper target sample rate)
         let target_sample_rate = 16000u32;
-        let resampled: Vec<f32> = if self.source_sample_rate != target_sample_rate {
+        let resampled: Vec<f32> = if self.source_sample_rate != target_sample_rate && self.source_sample_rate > 0 {
             resample_linear(&normalized_samples, self.source_sample_rate, target_sample_rate)
         } else {
             normalized_samples
