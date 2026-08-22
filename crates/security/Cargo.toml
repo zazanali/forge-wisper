@@ -1,0 +1,11 @@
+[package]
+name = "forge-security"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+keyring = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }

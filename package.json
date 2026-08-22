@@ -1,0 +1,24 @@
+{
+  "name": "forge-wisper-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Open-Source AI Voice-to-Text and Smart Writing Desktop Application",
+  "scripts": {
+    "dev": "pnpm --filter @forge-wisper/desktop dev",
+    "build": "pnpm --filter @forge-wisper/desktop build",
+    "tauri": "pnpm --filter @forge-wisper/desktop tauri",
+    "tauri:dev": "pnpm --filter @forge-wisper/desktop tauri dev",
+    "tauri:build": "pnpm --filter @forge-wisper/desktop tauri build",
+    "test": "cargo test --workspace"
+  },
+  "keywords": [
+    "voice-to-text",
+    "whisper",
+    "tauri",
+    "speech-to-text",
+    "groq",
+    "rust"
+  ],
+  "author": "Forge Wisper Contributors",
+  "license": "MIT"
+}

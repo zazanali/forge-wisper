@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0e0e0e;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ca5924;
+}
+
+/* Glassmorphism surfaces */
+.forge-glass {
+  background: rgba(28, 27, 27, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(229, 226, 225, 0.08);
+}
+
+.forge-card {
+  background: #1c1b1b;
+  border: 1px solid rgba(229, 226, 225, 0.08);
+  border-radius: 10px;
+}
+
+.forge-card:hover {
+  border-color: rgba(255, 181, 149, 0.2);
+}

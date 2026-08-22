@@ -1,0 +1,18 @@
+[package]
+name = "forge-provider-local-whisper"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+forge-transcription = { path = "../../crates/transcription" }
+async-trait = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+reqwest = { workspace = true }
+directories = { workspace = true }
+hound = { workspace = true }

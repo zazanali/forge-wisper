@@ -1,0 +1,43 @@
+[workspace]
+resolver = "2"
+members = [
+    "apps/desktop/src-tauri",
+    "crates/audio",
+    "crates/transcription",
+    "crates/cleanup",
+    "crates/verification",
+    "crates/output",
+    "crates/storage",
+    "crates/security",
+    "providers/mock",
+    "providers/groq",
+    "providers/local-whisper",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Forge Wisper Contributors"]
+license = "MIT"
+repository = "https://github.com/forge-wisper/forge-wisper"
+
+[workspace.dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.38", features = ["full"] }
+async-trait = "0.1"
+thiserror = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+hound = "3.5"
+cpal = "0.15"
+rusqlite = { version = "0.31", features = ["bundled"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "rustls-tls"] }
+keyring = "2.3"
+enigo = "0.2"
+arboard = "3.4"
+directories = "5.0"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.8", features = ["v4", "serde"] }
+regex = "1.10"
+lazy_static = "1.4"

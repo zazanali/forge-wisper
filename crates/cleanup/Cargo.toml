@@ -1,0 +1,15 @@
+[package]
+name = "forge-cleanup"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+forge-transcription = { path = "../transcription" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+regex = { workspace = true }
+lazy_static = { workspace = true }

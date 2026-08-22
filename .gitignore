@@ -1,0 +1,49 @@
+# Rust / Cargo
+/target/
+**/target/
+**/*.rs.bk
+Cargo.lock
+
+# Node / Frontend
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+dist-ssr/
+*.local
+
+# Tauri
+apps/desktop/src-tauri/target/
+
+# Models & Large Binaries (Offline Whisper GGUF/bin models)
+models/*.bin
+models/*.gguf
+models/*.pt
+!models/README.md
+
+# Environment and Secrets (Never commit secrets)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Logs & OS artifacts
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+*.bak
+
+# IDE & Editor
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.sublime-workspace
+*.sublime-project
