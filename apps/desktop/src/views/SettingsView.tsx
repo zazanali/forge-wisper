@@ -170,26 +170,26 @@ export const SettingsView: React.FC = () => {
 
   if (!settings) {
     return (
-      <div className="p-8 text-center text-forge-muted flex items-center justify-center gap-2">
-        <Loader2 className="w-5 h-5 animate-spin" /> Loading settings...
+      <div className="p-8 text-center text-[#5C6478] flex items-center justify-center gap-2 font-sans">
+        <Loader2 className="w-5 h-5 animate-spin text-[#FF4D5E]" /> Loading settings...
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 animate-fadeIn max-w-3xl pb-12">
+    <div className="space-y-8 animate-fadeIn max-w-3xl pb-12 font-sans">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-display font-bold text-forge-text">
+          <h2 className="text-xl font-display font-bold text-[#E8ECF2]">
             Settings & Preferences
           </h2>
-          <p className="text-xs text-forge-muted">
-            Configure speech engines, microphone, shortcuts, and personal vocabulary (§84).
+          <p className="text-xs text-[#9BA3B5]">
+            Configure speech engines, microphone, shortcuts, and personal vocabulary.
           </p>
         </div>
         {saveSuccess && (
-          <span className="inline-flex items-center gap-1 text-xs text-forge-success bg-emerald-950/60 px-2.5 py-1 rounded border border-emerald-800/40">
+          <span className="inline-flex items-center gap-1 text-xs text-[#3FE3C4] bg-[#3FE3C4]/15 px-3 py-1 rounded-lg border border-[#3FE3C4]/30 font-bold">
             <Check className="w-3.5 h-3.5" /> Saved
           </span>
         )}
@@ -197,8 +197,8 @@ export const SettingsView: React.FC = () => {
 
       {/* 1. Speech Engine Selection */}
       <div className="space-y-4">
-        <h3 className="text-sm font-semibold text-forge-accent uppercase tracking-wider flex items-center gap-2">
-          <Cpu className="w-4 h-4" /> Transcription Engine (§14)
+        <h3 className="text-xs font-semibold text-[#FF4D5E] uppercase tracking-wider flex items-center gap-2 font-display">
+          <Cpu className="w-4 h-4" /> Transcription Engine
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -211,21 +211,21 @@ export const SettingsView: React.FC = () => {
                 model: "mock-instant",
               })
             }
-            className={`forge-card p-4 text-left transition-all ${
+            className={`forge-card p-4 text-left rounded-xl transition-all ${
               settings.provider === "mock"
-                ? "border-forge-accent/60 bg-forge-strong/10"
-                : "hover:border-white/20"
+                ? "border-[#FF4D5E] bg-[#FF4D5E]/10 shadow-lg shadow-[#FF4D5E]/10"
+                : "border-[#2A2E38] hover:border-[#FF4D5E]/40"
             }`}
           >
             <div className="flex items-center justify-between mb-2">
-              <Sparkles className="w-5 h-5 text-forge-accent" />
+              <Sparkles className="w-5 h-5 text-[#FF4D5E]" />
               {settings.provider === "mock" && (
-                <span className="w-2 h-2 rounded-full bg-forge-accent" />
+                <span className="w-2 h-2 rounded-full bg-[#FF4D5E]" />
               )}
             </div>
-            <div className="font-semibold text-sm text-forge-text">Mock Engine</div>
-            <p className="text-xs text-forge-muted mt-1">
-              Deterministic offline testing without any API key or heavy model.
+            <div className="font-semibold text-sm text-[#E8ECF2]">Mock Engine</div>
+            <p className="text-xs text-[#9BA3B5] mt-1">
+              Deterministic offline testing without any API key or model.
             </p>
           </button>
 
@@ -238,10 +238,10 @@ export const SettingsView: React.FC = () => {
                 model: "whisper-large-v3-turbo",
               })
             }
-            className={`forge-card p-4 text-left transition-all ${
+            className={`forge-card p-4 text-left rounded-xl transition-all ${
               settings.provider === "groq"
-                ? "border-amber-500/60 bg-amber-950/20"
-                : "hover:border-white/20"
+                ? "border-amber-500 bg-amber-500/10 shadow-lg shadow-amber-500/10"
+                : "border-[#2A2E38] hover:border-amber-500/40"
             }`}
           >
             <div className="flex items-center justify-between mb-2">
@@ -250,8 +250,8 @@ export const SettingsView: React.FC = () => {
                 <span className="w-2 h-2 rounded-full bg-amber-400" />
               )}
             </div>
-            <div className="font-semibold text-sm text-forge-text">Groq Whisper</div>
-            <p className="text-xs text-forge-muted mt-1">
+            <div className="font-semibold text-sm text-[#E8ECF2]">Groq Whisper</div>
+            <p className="text-xs text-[#9BA3B5] mt-1">
               Ultra-fast cloud transcription powered by Groq LPUs.
             </p>
           </button>
@@ -265,37 +265,37 @@ export const SettingsView: React.FC = () => {
                 model: "base",
               })
             }
-            className={`forge-card p-4 text-left transition-all ${
+            className={`forge-card p-4 text-left rounded-xl transition-all ${
               settings.provider === "local-whisper"
-                ? "border-emerald-500/60 bg-emerald-950/20"
-                : "hover:border-white/20"
+                ? "border-[#3FE3C4] bg-[#3FE3C4]/10 shadow-lg shadow-[#3FE3C4]/10"
+                : "border-[#2A2E38] hover:border-[#3FE3C4]/40"
             }`}
           >
             <div className="flex items-center justify-between mb-2">
-              <Cpu className="w-5 h-5 text-emerald-400" />
+              <Cpu className="w-5 h-5 text-[#3FE3C4]" />
               {settings.provider === "local-whisper" && (
-                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                <span className="w-2 h-2 rounded-full bg-[#3FE3C4]" />
               )}
             </div>
-            <div className="font-semibold text-sm text-forge-text">Local Whisper</div>
-            <p className="text-xs text-forge-muted mt-1">
-              100% private offline transcription running on your CPU/GPU.
+            <div className="font-semibold text-sm text-[#E8ECF2]">Local Whisper</div>
+            <p className="text-xs text-[#9BA3B5] mt-1">
+              100% private offline transcription running on your machine.
             </p>
           </button>
         </div>
       </div>
 
-      {/* 2. Groq API Configuration (if Groq selected or configure key) */}
-      <div className="forge-card p-5 space-y-4 border border-white/10">
-        <h4 className="text-sm font-semibold text-forge-text flex items-center gap-2">
-          <Key className="w-4 h-4 text-amber-400" /> Groq API Credentials (§19)
+      {/* 2. Groq API Configuration */}
+      <div className="forge-card p-5 space-y-4 rounded-xl border border-[#2A2E38]">
+        <h4 className="text-sm font-semibold text-[#E8ECF2] flex items-center gap-2 font-display">
+          <Key className="w-4 h-4 text-amber-400" /> Groq API Credentials
         </h4>
-        <p className="text-xs text-forge-muted">
+        <p className="text-xs text-[#9BA3B5]">
           Your API key is never logged or saved to source code. It is stored securely in your OS Credential Vault (Keyring).
         </p>
 
         <div className="space-y-3">
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <input
               type="password"
               value={apiKeyInput}
@@ -305,45 +305,47 @@ export const SettingsView: React.FC = () => {
                   ? "•••••••••••••••••••••••••••• (Key is saved)"
                   : "Enter your gsk_... API key"
               }
-              className="flex-1 px-3.5 py-2 bg-forge-bg border border-white/10 rounded-md text-sm text-forge-text focus:outline-none focus:border-forge-accent/40"
+              className="flex-1 px-3.5 py-2 bg-[#0C0E14] border border-[#2A2E38] rounded-xl text-sm text-[#E8ECF2] focus:outline-none focus:border-[#FF4D5E] font-mono"
             />
-            <button
-              onClick={saveGroqKey}
-              disabled={!apiKeyInput.trim()}
-              className="px-4 py-2 bg-forge-surface hover:bg-forge-hover border border-white/10 rounded-md text-xs font-medium text-forge-text disabled:opacity-40"
-            >
-              Save Key
-            </button>
-            <button
-              onClick={testConnection}
-              disabled={isTestingKey}
-              className="px-4 py-2 bg-forge-strong hover:bg-forge-strong/90 rounded-md text-xs font-medium text-white disabled:opacity-50 flex items-center gap-1.5"
-            >
-              {isTestingKey && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              Test Connection
-            </button>
-            {hasStoredKey && (
+            <div className="flex gap-2">
               <button
-                onClick={removeGroqKey}
-                className="px-3 py-2 bg-forge-error/10 hover:bg-forge-error/20 text-forge-error rounded-md text-xs"
+                onClick={saveGroqKey}
+                disabled={!apiKeyInput.trim()}
+                className="px-4 py-2 bg-[#1C2028] hover:bg-[#252A34] border border-[#2A2E38] rounded-xl text-xs font-semibold text-[#E8ECF2] disabled:opacity-40 transition-colors"
               >
-                Remove
+                Save Key
               </button>
-            )}
+              <button
+                onClick={testConnection}
+                disabled={isTestingKey}
+                className="px-4 py-2 btn-blade rounded-xl text-xs font-semibold text-white disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {isTestingKey && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                Test Connection
+              </button>
+              {hasStoredKey && (
+                <button
+                  onClick={removeGroqKey}
+                  className="px-3 py-2 bg-[#FF4D5E]/15 hover:bg-[#FF4D5E]/25 text-[#FF4D5E] border border-[#FF4D5E]/30 rounded-xl text-xs font-semibold transition-colors"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
           </div>
 
           {testResult && (
             <div
-              className={`p-3 rounded text-xs flex items-center gap-2 ${
+              className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
                 testResult.success
-                  ? "bg-emerald-950/80 text-emerald-400 border border-emerald-800/40"
-                  : "bg-red-950/80 text-red-400 border border-red-800/40"
+                  ? "bg-[#3FE3C4]/15 text-[#3FE3C4] border border-[#3FE3C4]/30"
+                  : "bg-[#FF4D5E]/15 text-[#FF4D5E] border border-[#FF4D5E]/30"
               }`}
             >
               {testResult.success ? (
-                <Check className="w-4 h-4" />
+                <Check className="w-4 h-4 shrink-0" />
               ) : (
-                <AlertCircle className="w-4 h-4" />
+                <AlertCircle className="w-4 h-4 shrink-0" />
               )}
               <span>{testResult.msg}</span>
             </div>
@@ -352,7 +354,7 @@ export const SettingsView: React.FC = () => {
           {/* Groq Model Picker */}
           {settings.provider === "groq" && (
             <div className="pt-2">
-              <label className="text-xs text-forge-muted block mb-1.5">
+              <label className="text-xs text-[#9BA3B5] block mb-1.5 font-mono">
                 Groq Whisper Model
               </label>
               <select
@@ -360,7 +362,7 @@ export const SettingsView: React.FC = () => {
                 onChange={(e) =>
                   handleSave({ ...settings, model: e.target.value })
                 }
-                className="w-full px-3 py-2 bg-forge-bg border border-white/10 rounded-md text-sm text-forge-text focus:outline-none focus:border-forge-accent/40"
+                className="w-full px-3.5 py-2.5 bg-[#0C0E14] border border-[#2A2E38] rounded-xl text-sm text-[#E8ECF2] focus:outline-none focus:border-[#FF4D5E]"
               >
                 <option value="whisper-large-v3-turbo">
                   whisper-large-v3-turbo (Recommended Default)
@@ -376,13 +378,13 @@ export const SettingsView: React.FC = () => {
 
       {/* 3. Audio Microphone Input */}
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold text-forge-accent uppercase tracking-wider flex items-center gap-2">
-          <Mic className="w-4 h-4" /> Microphone (§10)
+        <h3 className="text-xs font-semibold text-[#FF4D5E] uppercase tracking-wider flex items-center gap-2 font-display">
+          <Mic className="w-4 h-4" /> Microphone
         </h3>
 
-        <div className="forge-card p-4 space-y-3">
+        <div className="forge-card p-4 space-y-3 rounded-xl border border-[#2A2E38]">
           <div>
-            <label className="text-xs text-forge-muted block mb-1.5">
+            <label className="text-xs text-[#9BA3B5] block mb-1.5 font-mono">
               Input Device
             </label>
             <select
@@ -393,7 +395,7 @@ export const SettingsView: React.FC = () => {
                   microphone: e.target.value ? e.target.value : null,
                 })
               }
-              className="w-full px-3 py-2 bg-forge-bg border border-white/10 rounded-md text-sm text-forge-text focus:outline-none focus:border-forge-accent/40"
+              className="w-full px-3.5 py-2.5 bg-[#0C0E14] border border-[#2A2E38] rounded-xl text-sm text-[#E8ECF2] focus:outline-none focus:border-[#FF4D5E]"
             >
               <option value="">System Default Microphone</option>
               {audioDevices.map((d) => (
@@ -404,16 +406,16 @@ export const SettingsView: React.FC = () => {
             </select>
           </div>
 
-          <div className="pt-2 border-t border-white/5 flex flex-col gap-2">
+          <div className="pt-2 border-t border-[#2A2E38] flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-forge-muted">Microphone Level Test</span>
+              <span className="text-xs text-[#9BA3B5]">Microphone Hardware Level Test</span>
               <button
                 type="button"
                 onClick={toggleMicTest}
-                className={`px-3 py-1.5 rounded text-xs font-medium transition-all ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                   isMicTesting
-                    ? "bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse"
-                    : "bg-forge-accent/20 text-forge-accent hover:bg-forge-accent/30 border border-forge-accent/30"
+                    ? "bg-[#FF4D5E]/20 text-[#FF4D5E] border border-[#FF4D5E]/40 animate-pulse"
+                    : "btn-outline"
                 }`}
               >
                 {isMicTesting ? "Stop Live Test" : "Test Live Microphone"}
@@ -422,22 +424,22 @@ export const SettingsView: React.FC = () => {
 
             {isMicTesting && (
               <div className="space-y-1.5 pt-1">
-                <div className="h-3 bg-forge-bg rounded-full overflow-hidden border border-white/10 p-0.5">
+                <div className="h-3 bg-[#0C0E14] rounded-full overflow-hidden border border-[#2A2E38] p-0.5">
                   <div
                     className={`h-full rounded-full transition-all duration-75 ${
                       micLevel > 60
                         ? "bg-amber-400"
                         : micLevel > 10
-                        ? "bg-emerald-400"
-                        : "bg-forge-muted"
+                        ? "bg-[#3FE3C4]"
+                        : "bg-[#5C6478]"
                     }`}
                     style={{ width: `${Math.max(4, micLevel)}%` }}
                   />
                 </div>
-                <div className="flex justify-between text-[10px] text-forge-muted">
+                <div className="flex justify-between text-[10px] text-[#5C6478] font-mono">
                   <span>Mute</span>
-                  <span className={micLevel > 15 ? "text-emerald-400 font-bold" : ""}>
-                    {micLevel > 15 ? "Sound Detected ✓" : "Speak to test..."}
+                  <span className={micLevel > 15 ? "text-[#3FE3C4] font-bold" : ""}>
+                    {micLevel > 15 ? "Sound Detected ✓" : "Speak into mic..."}
                   </span>
                   <span>Max</span>
                 </div>
@@ -449,14 +451,14 @@ export const SettingsView: React.FC = () => {
 
       {/* 4. Hotkeys & Interaction Modes */}
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold text-forge-accent uppercase tracking-wider flex items-center gap-2">
-          <Keyboard className="w-4 h-4" /> Shortcut & Trigger Mode (§11–§12)
+        <h3 className="text-xs font-semibold text-[#FF4D5E] uppercase tracking-wider flex items-center gap-2 font-display">
+          <Keyboard className="w-4 h-4" /> Shortcut & Trigger Mode
         </h3>
 
-        <div className="forge-card p-4 space-y-4">
+        <div className="forge-card p-4 space-y-4 rounded-xl border border-[#2A2E38]">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-xs text-forge-muted block mb-1.5">
+              <label className="text-xs text-[#9BA3B5] block mb-1.5 font-mono">
                 Global Hotkey
               </label>
               <input
@@ -465,12 +467,12 @@ export const SettingsView: React.FC = () => {
                 onChange={(e) =>
                   handleSave({ ...settings, hotkey: e.target.value })
                 }
-                className="w-full px-3 py-2 bg-forge-bg border border-white/10 rounded-md text-sm text-forge-text font-mono"
+                className="w-full px-3.5 py-2 bg-[#0C0E14] border border-[#2A2E38] rounded-xl text-sm text-[#E8ECF2] font-mono focus:outline-none focus:border-[#FF4D5E]"
               />
             </div>
 
             <div>
-              <label className="text-xs text-forge-muted block mb-1.5">
+              <label className="text-xs text-[#9BA3B5] block mb-1.5 font-mono">
                 Interaction Trigger
               </label>
               <div className="flex gap-2">
@@ -478,10 +480,10 @@ export const SettingsView: React.FC = () => {
                   onClick={() =>
                     handleSave({ ...settings, is_toggle_mode: false })
                   }
-                  className={`flex-1 py-2 rounded-md text-xs font-medium border transition-colors ${
+                  className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition-colors ${
                     !settings.is_toggle_mode
-                      ? "border-forge-accent bg-forge-strong/20 text-forge-text"
-                      : "border-white/10 text-forge-muted hover:text-forge-text"
+                      ? "border-[#FF4D5E] bg-[#FF4D5E]/15 text-[#FF4D5E]"
+                      : "border-[#2A2E38] text-[#9BA3B5] hover:text-[#E8ECF2] hover:bg-[#1C2028]"
                   }`}
                 >
                   Push-to-Talk (Hold)
@@ -490,10 +492,10 @@ export const SettingsView: React.FC = () => {
                   onClick={() =>
                     handleSave({ ...settings, is_toggle_mode: true })
                   }
-                  className={`flex-1 py-2 rounded-md text-xs font-medium border transition-colors ${
+                  className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition-colors ${
                     settings.is_toggle_mode
-                      ? "border-forge-accent bg-forge-strong/20 text-forge-text"
-                      : "border-white/10 text-forge-muted hover:text-forge-text"
+                      ? "border-[#FF4D5E] bg-[#FF4D5E]/15 text-[#FF4D5E]"
+                      : "border-[#2A2E38] text-[#9BA3B5] hover:text-[#E8ECF2] hover:bg-[#1C2028]"
                   }`}
                 >
                   Toggle (Start/Stop)
@@ -506,34 +508,34 @@ export const SettingsView: React.FC = () => {
 
       {/* 5. Personal Vocabulary / Dictionary */}
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold text-forge-accent uppercase tracking-wider flex items-center gap-2">
-          <BookOpen className="w-4 h-4" /> Personal Dictionary (§25)
+        <h3 className="text-xs font-semibold text-[#FF4D5E] uppercase tracking-wider flex items-center gap-2 font-display">
+          <BookOpen className="w-4 h-4" /> Personal Dictionary
         </h3>
 
-        <div className="forge-card p-4 space-y-3">
-          <p className="text-xs text-forge-muted">
+        <div className="forge-card p-4 space-y-3 rounded-xl border border-[#2A2E38]">
+          <p className="text-xs text-[#9BA3B5]">
             Map phonetic or mistranscribed words into proper casing and company/project names.
           </p>
 
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <input
               type="text"
               value={newSpoken}
               onChange={(e) => setNewSpoken(e.target.value)}
               placeholder="Spoken: e.g. 'lang chain'"
-              className="flex-1 px-3 py-2 bg-forge-bg border border-white/10 rounded-md text-xs text-forge-text"
+              className="flex-1 px-3.5 py-2 bg-[#0C0E14] border border-[#2A2E38] rounded-xl text-xs text-[#E8ECF2] focus:outline-none focus:border-[#FF4D5E]"
             />
             <input
               type="text"
               value={newPreferred}
               onChange={(e) => setNewPreferred(e.target.value)}
               placeholder="Preferred: e.g. 'LangChain'"
-              className="flex-1 px-3 py-2 bg-forge-bg border border-white/10 rounded-md text-xs text-forge-text"
+              className="flex-1 px-3.5 py-2 bg-[#0C0E14] border border-[#2A2E38] rounded-xl text-xs text-[#E8ECF2] focus:outline-none focus:border-[#FF4D5E]"
             />
             <button
               onClick={addDictionaryWord}
               disabled={!newSpoken.trim() || !newPreferred.trim()}
-              className="px-3.5 py-2 bg-forge-strong hover:bg-forge-strong/90 rounded-md text-xs text-white disabled:opacity-40 flex items-center gap-1"
+              className="px-4 py-2 btn-blade rounded-xl text-xs font-semibold text-white disabled:opacity-40 flex items-center gap-1 justify-center"
             >
               <Plus className="w-3.5 h-3.5" /> Add
             </button>
@@ -543,17 +545,17 @@ export const SettingsView: React.FC = () => {
             {Object.entries(settings.dictionary).map(([spoken, preferred]) => (
               <div
                 key={spoken}
-                className="flex items-center justify-between p-2 bg-black/30 rounded border border-white/5 text-xs font-mono"
+                className="flex items-center justify-between p-2.5 bg-[#0C0E14] rounded-xl border border-[#2A2E38] text-xs font-mono"
               >
                 <span>
-                  <span className="text-forge-muted">{spoken}</span> →{" "}
-                  <span className="text-forge-accent font-semibold">
+                  <span className="text-[#9BA3B5]">{spoken}</span> →{" "}
+                  <span className="text-[#FF4D5E] font-semibold">
                     {preferred}
                   </span>
                 </span>
                 <button
                   onClick={() => removeDictionaryWord(spoken)}
-                  className="text-forge-muted hover:text-forge-error p-1 transition-colors"
+                  className="text-[#5C6478] hover:text-[#FF4D5E] p-1 transition-colors"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -565,13 +567,13 @@ export const SettingsView: React.FC = () => {
 
       {/* 6. History Retention & Privacy */}
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold text-forge-accent uppercase tracking-wider flex items-center gap-2">
-          <Shield className="w-4 h-4" /> History Retention & Privacy (§53, §59)
+        <h3 className="text-xs font-semibold text-[#FF4D5E] uppercase tracking-wider flex items-center gap-2 font-display">
+          <Shield className="w-4 h-4" /> History Retention & Privacy
         </h3>
 
-        <div className="forge-card p-4 space-y-3">
+        <div className="forge-card p-4 space-y-3 rounded-xl border border-[#2A2E38]">
           <div>
-            <label className="text-xs text-forge-muted block mb-1.5">
+            <label className="text-xs text-[#9BA3B5] block mb-1.5 font-mono">
               Retention Policy
             </label>
             <select
@@ -582,7 +584,7 @@ export const SettingsView: React.FC = () => {
                   retention_policy: e.target.value as RetentionPolicy,
                 })
               }
-              className="w-full px-3 py-2 bg-forge-bg border border-white/10 rounded-md text-sm text-forge-text focus:outline-none"
+              className="w-full px-3.5 py-2.5 bg-[#0C0E14] border border-[#2A2E38] rounded-xl text-sm text-[#E8ECF2] focus:outline-none focus:border-[#FF4D5E]"
             >
               <option value="Days30">Keep for 30 Days (Default)</option>
               <option value="Days7">Keep for 7 Days</option>
@@ -590,7 +592,7 @@ export const SettingsView: React.FC = () => {
               <option value="Off">Do Not Save (Off)</option>
             </select>
           </div>
-          <p className="text-[11px] text-forge-muted">
+          <p className="text-[11px] text-[#5C6478]">
             Audio is never persisted to disk in any retention mode.
           </p>
         </div>

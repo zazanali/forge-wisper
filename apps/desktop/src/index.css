@@ -4,48 +4,145 @@
 
 :root {
   color-scheme: dark;
+  --bg: #0C0E14;
+  --panel: #151820;
+  --raised: #1C2028;
+  --raised-hover: #252A34;
+  --border: #2A2E38;
+  --border-soft: #222630;
+  --text-1: #E8ECF2;
+  --text-2: #9BA3B5;
+  --text-3: #5C6478;
+  --blade: #FF4D5E;
+  --blade-soft: rgba(255, 77, 94, 0.12);
+  --blade-hover: #E8404F;
+  --blade-glow: rgba(255, 77, 94, 0.25);
+  --teal: #3FE3C4;
+  --teal-soft: rgba(63, 227, 196, 0.10);
+  --teal-hover: #2DC9AD;
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-head: 'Space Grotesk', var(--font);
+  --font-mono: 'JetBrains Mono', 'Cascadia Code', monospace;
+  --r-xs: 6px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 24px;
 }
 
 body {
   margin: 0;
   padding: 0;
+  background-color: var(--bg);
+  color: var(--text-1);
+  font-family: var(--font);
   user-select: none;
   -webkit-user-select: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom scrollbars */
+/* Custom ForgeClip Scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0e0e0e;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2a2a2a;
+  background: #2A2E38;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #ca5924;
+  background: #FF4D5E;
 }
 
-/* Glassmorphism surfaces */
+/* Glassmorphism & Surface Tokens */
 .forge-glass {
-  background: rgba(28, 27, 27, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(229, 226, 225, 0.08);
+  background: rgba(21, 24, 32, 0.92);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--border);
 }
 
 .forge-card {
-  background: #1c1b1b;
-  border: 1px solid rgba(229, 226, 225, 0.08);
-  border-radius: 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .forge-card:hover {
-  border-color: rgba(255, 181, 149, 0.2);
+  border-color: rgba(255, 77, 94, 0.35);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+/* Buttons */
+.btn-blade {
+  background: var(--blade);
+  color: #ffffff;
+  box-shadow: 0 2px 10px var(--blade-glow);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-blade:hover {
+  background: var(--blade-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px var(--blade-glow);
+}
+
+.btn-blade:active {
+  transform: translateY(0);
+}
+
+.btn-teal {
+  background: var(--teal);
+  color: #0A0C10;
+  box-shadow: 0 2px 10px rgba(63, 227, 196, 0.25);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-teal:hover {
+  background: var(--teal-hover);
+  transform: translateY(-1px);
+}
+
+.btn-outline {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  transition: all 0.2s ease;
+}
+
+.btn-outline:hover {
+  background: var(--raised-hover);
+  color: var(--text-1);
+  border-color: var(--text-3);
+}
+
+/* Toast */
+.forge-toast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(21, 24, 32, 0.95);
+  color: var(--text-1);
+  border: 1px solid var(--border);
+  padding: 10px 22px;
+  border-radius: var(--r-md);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 999999;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  pointer-events: none;
+  animation: fadeUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }

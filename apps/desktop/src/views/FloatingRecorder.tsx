@@ -67,22 +67,22 @@ export const FloatingRecorder: React.FC = () => {
   const barMultipliers = [0.35, 0.75, 1.0, 0.85, 0.95, 0.6, 0.4];
 
   return (
-    <div className="w-full h-full flex items-center justify-center p-1 select-none">
+    <div className="w-full h-full flex items-center justify-center p-1 select-none font-sans">
       <div
-        className={`w-full h-14 bg-[#18181B]/95 backdrop-blur-2xl border rounded-2xl shadow-2xl px-4 flex items-center justify-between text-forge-text transition-all duration-300 ${
+        className={`w-full h-14 bg-[#151820]/95 backdrop-blur-2xl border rounded-2xl shadow-2xl px-4 flex items-center justify-between text-[#E8ECF2] transition-all duration-300 ${
           state === "Listening"
-            ? "border-red-500/40 shadow-red-500/10"
+            ? "border-[#FF4D5E] shadow-xl shadow-[#FF4D5E]/20"
             : state === "Success"
-            ? "border-emerald-500/40 shadow-emerald-500/10"
-            : "border-white/10"
+            ? "border-[#3FE3C4] shadow-xl shadow-[#3FE3C4]/20"
+            : "border-[#2A2E38]"
         }`}
       >
         <div className="flex items-center gap-3">
           {/* Animated Status Icon */}
           {state === "Listening" && (
             <div className="relative flex items-center justify-center">
-              <span className="animate-ping absolute inline-flex h-4 w-4 rounded-full bg-red-500 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+              <span className="animate-ping absolute inline-flex h-4 w-4 rounded-full bg-[#FF4D5E] opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-[#FF4D5E]"></span>
             </div>
           )}
 
@@ -92,23 +92,23 @@ export const FloatingRecorder: React.FC = () => {
             state === "Structuring" ||
             state === "Verifying" ||
             state === "Inserting") && (
-            <Loader2 className="w-4 h-4 text-forge-accent animate-spin" />
+            <Loader2 className="w-4 h-4 text-[#FF4D5E] animate-spin" />
           )}
 
           {state === "Success" && (
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 animate-bounce" />
+            <CheckCircle2 className="w-4 h-4 text-[#3FE3C4] animate-bounce" />
           )}
 
           {state === "Error" && (
-            <AlertCircle className="w-4 h-4 text-forge-error" />
+            <AlertCircle className="w-4 h-4 text-[#FF4D5E]" />
           )}
 
-          {state === "Idle" && <Mic className="w-4 h-4 text-forge-muted" />}
+          {state === "Idle" && <Mic className="w-4 h-4 text-[#5C6478]" />}
 
           {/* Status Text & Dynamic Reactive Waveform */}
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold tracking-wide">
+              <span className="text-xs font-semibold tracking-wide font-display text-[#E8ECF2]">
                 {state === "Listening" && "Listening..."}
                 {state === "Stopping" && "Stopping..."}
                 {state === "Transcribing" && "Transcribing..."}
@@ -123,7 +123,7 @@ export const FloatingRecorder: React.FC = () => {
               </span>
 
               {state === "Listening" && (
-                <span className="text-[11px] font-mono text-red-400 font-bold">
+                <span className="text-[11px] font-mono text-[#FF4D5E] font-bold">
                   {formatTime(durationSecs)}
                 </span>
               )}
@@ -139,7 +139,7 @@ export const FloatingRecorder: React.FC = () => {
                   return (
                     <div
                       key={i}
-                      className="w-1 bg-gradient-to-t from-red-500 to-amber-400 rounded-full transition-all duration-75"
+                      className="w-1 bg-gradient-to-t from-[#FF4D5E] to-[#FBBF24] rounded-full transition-all duration-75"
                       style={{
                         height: `${Math.min(100, dynamicHeight)}%`,
                       }}
@@ -152,7 +152,7 @@ export const FloatingRecorder: React.FC = () => {
         </div>
 
         {/* Engine Privacy Badge (§60) */}
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/50 border border-white/5 text-[10px] font-mono text-forge-muted">
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#0C0E14] border border-[#2A2E38] text-[10px] font-mono text-[#9BA3B5]">
           {isGroq && (
             <>
               <span className="text-amber-400">⚡</span>
@@ -161,13 +161,13 @@ export const FloatingRecorder: React.FC = () => {
           )}
           {isLocal && (
             <>
-              <span className="text-emerald-400">●</span>
-              <span>LOCAL</span>
+              <span className="text-[#3FE3C4]">●</span>
+              <span className="text-[#3FE3C4]">LOCAL</span>
             </>
           )}
           {!isGroq && !isLocal && (
             <>
-              <Sparkles className="w-2.5 h-2.5 text-forge-accent" />
+              <Sparkles className="w-2.5 h-2.5 text-[#FF4D5E]" />
               <span>MOCK</span>
             </>
           )}
