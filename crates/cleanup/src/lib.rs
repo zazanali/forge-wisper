@@ -66,18 +66,29 @@ pub enum CleanupError {
 pub struct RuleBasedCleaner;
 
 lazy_static! {
-    static ref RE_UM_UH: Regex = Regex::new(r"(?i)\b(um|uh|er|ah)\b").unwrap();
+    static ref RE_UM_UH: Regex = Regex::new(r"(?i)\b(um|uh|er|ah|like,?\s+um|you know,?\s+uh)\b").unwrap();
     static ref RE_YOU_KNOW: Regex = Regex::new(r"(?i)\b(you know|basically|sort of|kind of)\b").unwrap();
-    static ref RE_MULTI_SPACE: Regex = Regex::new(r"\s+").unwrap();
+    static ref RE_MULTI_SPACE: Regex = Regex::new(r"[ \t]+").unwrap();
     static ref RE_PUNCT_SPACE: Regex = Regex::new(r"\s+([,.:;?!])").unwrap();
     static ref RE_SPOKEN_PUNCT: Vec<(Regex, &'static str)> = vec![
+        (Regex::new(r"(?i)\b(new paragraph|next paragraph)\b").unwrap(), "\n\n"),
+        (Regex::new(r"(?i)\b(new line|newline|next line)\b").unwrap(), "\n"),
+        (Regex::new(r"(?i)\b(bullet point|bullet)\b").unwrap(), "\n- "),
+        (Regex::new(r"(?i)\b(checkbox|check box|todo item)\b").unwrap(), "\n- [ ] "),
         (Regex::new(r"(?i)\bcomma\b").unwrap(), ","),
         (Regex::new(r"(?i)\b(period|full stop)\b").unwrap(), "."),
         (Regex::new(r"(?i)\bquestion mark\b").unwrap(), "?"),
         (Regex::new(r"(?i)\b(exclamation mark|exclamation point)\b").unwrap(), "!"),
         (Regex::new(r"(?i)\bcolon\b").unwrap(), ":"),
         (Regex::new(r"(?i)\bsemicolon\b").unwrap(), ";"),
-        (Regex::new(r"(?i)\b(new line|newline)\b").unwrap(), "\n"),
+        (Regex::new(r"(?i)\b(hyphen|dash)\b").unwrap(), "-"),
+        (Regex::new(r"(?i)\b(forward slash|slash)\b").unwrap(), "/"),
+        (Regex::new(r"(?i)\b(at sign|at symbol)\b").unwrap(), "@"),
+        (Regex::new(r"(?i)\b(hashtag|hash sign)\b").unwrap(), "#"),
+        (Regex::new(r"(?i)\b(open parenthesis|open paren)\b").unwrap(), "("),
+        (Regex::new(r"(?i)\b(close parenthesis|close paren)\b").unwrap(), ")"),
+        (Regex::new(r"(?i)\b(open quote|quote)\b").unwrap(), "\""),
+        (Regex::new(r"(?i)\b(close quote|end quote|unquote)\b").unwrap(), "\""),
     ];
 }
 
@@ -109,7 +120,7 @@ impl RuleBasedCleaner {
         // 1. Spoken corrections ("Tuesday, actually Thursday" -> "Thursday")
         text = Self::apply_corrections(&text);
 
-        // 2. Spoken punctuation replacement ("hello comma how are you question mark" -> "hello, how are you?")
+        // 2. Spoken punctuation & verbal commands replacement ("new paragraph", "comma", "bullet point")
         text = Self::apply_spoken_punctuation(&text);
 
         // 3. Filler word removal ("um", "uh")
@@ -142,31 +153,31 @@ impl RuleBasedCleaner {
         })
     }
 
-    /// Handles spoken correction phrases
+    /// Handles spoken self-correction phrases
     pub fn apply_corrections(input: &str) -> String {
         let mut text = input.to_string();
 
-        // Multi-word "three cars, I mean four cars" -> "four cars"
-        let re_imean_phrase = Regex::new(r"(?i)\b([a-zA-Z0-9]+\s+[a-zA-Z0-9]+)\s*,?\s*I mean\s+([a-zA-Z0-9]+\s+[a-zA-Z0-9]+)\b").unwrap();
-        text = re_imean_phrase.replace_all(&text, "$2").to_string();
-
-        // Single word "three, I mean four" -> "four"
-        let re_imean_single = Regex::new(r"(?i)\b([a-zA-Z0-9]+)\s*,?\s*I mean\s+([a-zA-Z0-9]+)\b").unwrap();
-        text = re_imean_single.replace_all(&text, "$2").to_string();
-
-        // "Tuesday, actually Thursday" -> "Thursday"
-        let re_actually = Regex::new(r"(?i)\b([a-zA-Z0-9]+)\s*,?\s*actually\s+([a-zA-Z0-9]+)\b").unwrap();
-        text = re_actually.replace_all(&text, "$2").to_string();
-
         // "scratch that ..." -> "..."
-        let re_scratch = Regex::new(r"(?i)(?:.*?\s+)?scratch that\s+(.*)").unwrap();
+        let re_scratch = Regex::new(r"(?i)(?:.*?\s+)?(?:scratch that|cancel that)\s*,?\s*(.*)").unwrap();
         if re_scratch.is_match(&text) {
             text = re_scratch.replace(&text, "$1").to_string();
         }
 
-        // "wait no" / "no wait"
-        let re_wait_no = Regex::new(r"(?i)\b([a-zA-Z0-9]+)\s*,?\s*(?:wait no|no wait)\s+([a-zA-Z0-9]+)\b").unwrap();
-        text = re_wait_no.replace_all(&text, "$2").to_string();
+        // Multi-word phrase corrections: "three cars, I mean four cars" -> "four cars"
+        let re_phrase = Regex::new(r"(?i)\b([a-zA-Z0-9]+)\s+([a-zA-Z0-9]+)\s*,?\s*(?:I mean|I meant|make that|or rather)\s+([a-zA-Z0-9]+)\s+([a-zA-Z0-9]+)\b").unwrap();
+        text = re_phrase.replace_all(&text, |caps: &regex::Captures| {
+            let noun1 = &caps[2];
+            let noun2 = &caps[4];
+            if noun1.eq_ignore_ascii_case(noun2) {
+                format!("{} {}", &caps[3], noun2)
+            } else {
+                caps[0].to_string()
+            }
+        }).to_string();
+
+        // Single word corrections: "five, make that ten" / "Tuesday, actually Thursday" / "three, I mean four"
+        let re_correction = Regex::new(r"(?i)\b([a-zA-Z0-9]+)\s*,?\s*(?:actually|I mean|I meant|make that|or rather|sorry|wait no|no wait)\s+([a-zA-Z0-9]+)\b").unwrap();
+        text = re_correction.replace_all(&text, "$2").to_string();
 
         text
     }
@@ -257,11 +268,23 @@ impl RuleBasedCleaner {
         result
     }
 
-    /// Detects structured patterns (lists, steps, headings)
+    /// Detects structured patterns (lists, steps, headings, tasks)
     pub fn apply_structure(input: &str) -> String {
         let mut text = input.to_string();
 
-        // Detect sequential step indicators: "first ..., then ..., after that ..., finally ..."
+        // 1. Heading indicators: "heading: ...", "title: ...", "section: ..."
+        let re_heading = Regex::new(r"(?i)(?:^|\n|\.\s+)(?:heading|title|section)\s*:\s*([^\n\.]+)").unwrap();
+        text = re_heading.replace_all(&text, "\n\n### $1\n").to_string();
+
+        // 2. Action items / Task items: "action item: ...", "task: ...", "todo: ..."
+        let re_action_item = Regex::new(r"(?i)\b(?:action item|task|todo)\s*:\s*").unwrap();
+        text = re_action_item.replace_all(&text, "\n- [ ] ").to_string();
+
+        // 3. Numbered steps: "step 1:", "step 2:" or "number 1:", "number 2:"
+        let re_numbered_step = Regex::new(r"(?i)\b(?:step|number)\s*(\d+)\s*[:,]?\s*").unwrap();
+        text = re_numbered_step.replace_all(&text, "\n$1. ").to_string();
+
+        // 4. Sequential step indicators: "first ..., then ..., after that ..., finally ..."
         let re_first_step = Regex::new(r"(?i)\bfirst(?:ly)?\s*[:,]?\s*").unwrap();
         let re_second_step = Regex::new(r"(?i)\b(?:second(?:ly)?|then)\s*[:,]?\s*").unwrap();
         let re_third_step = Regex::new(r"(?i)\b(?:third(?:ly)?|after that)\s*[:,]?\s*").unwrap();
@@ -379,5 +402,37 @@ mod tests {
         let options = CleanupOptions::default();
         let cleaned = RuleBasedCleaner::clean(&transcript, &options).unwrap();
         assert_eq!(cleaned.cleaned_text, "");
+    }
+
+    #[test]
+    fn test_verbal_commands() {
+        let input = "Title: Project Plan new paragraph bullet point item one bullet point item two";
+        let transcript = Transcript {
+            text: input.to_string(),
+            language: "en".to_string(),
+            provider: "mock".to_string(),
+            model: "mock-v1".to_string(),
+            duration_ms: 2000,
+            confidence: Some(1.0),
+        };
+        let options = CleanupOptions {
+            mode: FormattingMode::Structured,
+            dictionary: HashMap::new(),
+        };
+        let cleaned = RuleBasedCleaner::clean(&transcript, &options).unwrap();
+        assert!(cleaned.cleaned_text.contains("### Project Plan"));
+        assert!(cleaned.cleaned_text.contains("- Item one"));
+        assert!(cleaned.cleaned_text.contains("- Item two"));
+    }
+
+    #[test]
+    fn test_advanced_corrections() {
+        let input = "Send this email to Sarah, scratch that, send it to David.";
+        let res = RuleBasedCleaner::apply_corrections(input);
+        assert_eq!(res, "send it to David.");
+
+        let input2 = "We need five, make that ten licenses.";
+        let res2 = RuleBasedCleaner::apply_corrections(input2);
+        assert_eq!(res2, "We need ten licenses.");
     }
 }

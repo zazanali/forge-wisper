@@ -64,6 +64,42 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     setTimeout(() => setCopiedId(null), 1500);
   };
 
+  const [audioLevel, setAudioLevel] = useState(0);
+  const [durationSecs, setDurationSecs] = useState(0);
+
+  // Duration timer
+  useEffect(() => {
+    if (procState !== "Listening") {
+      setDurationSecs(0);
+      return;
+    }
+    const interval = setInterval(() => setDurationSecs((s) => s + 1), 1000);
+    return () => clearInterval(interval);
+  }, [procState]);
+
+  // Audio level polling
+  useEffect(() => {
+    if (procState !== "Listening") {
+      setAudioLevel(0);
+      return;
+    }
+    const interval = setInterval(async () => {
+      try {
+        const rms = await api.getMicLevel();
+        setAudioLevel(Math.min(1.0, rms * 5.0));
+      } catch {
+        // ignore
+      }
+    }, 70);
+    return () => clearInterval(interval);
+  }, [procState]);
+
+  const formatTime = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s < 10 ? "0" : ""}${s}`;
+  };
+
   const isRecording = procState === "Listening";
 
   return (
@@ -79,50 +115,74 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           </div>
           <button
             onClick={() => onNavigate("settings")}
-            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-black font-semibold rounded text-xs shrink-0 transition"
+            className="px-3 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded font-medium transition-colors shrink-0"
           >
-            Configure in Settings →
+            Configure Engine →
           </button>
         </div>
       )}
 
-      {/* Hero Dictation Card */}
-      <div className="forge-card p-6 bg-gradient-to-b from-[#1C1B1B] to-[#141414] relative overflow-hidden border border-white/10">
+      {/* Main Ready to Dictate Hero Card */}
+      <div className={`forge-card p-6 bg-gradient-to-b from-[#1C1B1B] to-[#141414] relative overflow-hidden border transition-all duration-300 ${
+        isRecording ? "border-red-500/50 shadow-lg shadow-red-500/10" : "border-white/10"
+      }`}>
         <div className="absolute top-0 right-0 w-64 h-64 bg-forge-strong/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
           <div className="space-y-2 text-center md:text-left">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-forge-strong/10 border border-forge-strong/20 text-xs font-mono text-forge-accent">
-              <span className="w-2 h-2 rounded-full bg-forge-strong animate-pulse" />
+              <span className={`w-2 h-2 rounded-full ${isRecording ? "bg-red-500 animate-ping" : "bg-forge-strong animate-pulse"}`} />
               HOTKEY: {settings?.hotkey || "Control+Space"}
             </div>
-            <h2 className="text-2xl font-display font-bold text-forge-text tracking-tight">
-              Ready to Dictate
+            <h2 className="text-2xl font-display font-bold text-forge-text tracking-tight flex items-center gap-3">
+              {isRecording ? "Recording Speech..." : "Ready to Dictate"}
+              {isRecording && (
+                <span className="text-sm font-mono text-red-400 font-bold px-2 py-0.5 rounded bg-red-500/10 border border-red-500/20">
+                  {formatTime(durationSecs)}
+                </span>
+              )}
             </h2>
             <p className="text-sm text-forge-muted max-w-md">
               {settings?.is_toggle_mode
-                ? `Press ${settings.hotkey} to start, and press again when finished.`
-                : `Hold ${settings?.hotkey || "Ctrl+Space"} in any app, speak naturally, and release.`}
+                ? `Press ${settings.hotkey} to start dictation, speak, and press again to paste.`
+                : `Hold ${settings?.hotkey || "Ctrl+Space"} in any active window, speak naturally, and release.`}
             </p>
+
+            {/* Live Audio Reactive Visualizer */}
+            {isRecording && (
+              <div className="flex items-center gap-1.5 pt-2">
+                <span className="text-xs text-forge-muted">Input:</span>
+                {[0.4, 0.8, 1.0, 0.7, 0.9, 0.5, 0.3].map((mult, i) => (
+                  <div
+                    key={i}
+                    className="w-1.5 bg-gradient-to-t from-red-500 to-amber-400 rounded-full transition-all duration-75"
+                    style={{
+                      height: `${Math.max(6, Math.min(24, Math.round((audioLevel * mult + 0.2) * 24)))}px`,
+                    }}
+                  />
+                ))}
+                <span className="text-[11px] text-emerald-400 font-mono ml-2">Live Waveform</span>
+              </div>
+            )}
           </div>
 
           <button
             onClick={toggleRecording}
-            className={`flex items-center gap-3 px-6 py-3.5 rounded-lg font-medium transition-all duration-200 shadow-lg ${
+            className={`flex items-center gap-3 px-7 py-4 rounded-xl font-medium transition-all duration-200 shadow-xl ${
               isRecording
-                ? "bg-forge-error hover:bg-forge-error/90 text-white animate-pulse"
+                ? "bg-red-600 hover:bg-red-500 text-white animate-pulse shadow-red-600/30"
                 : "bg-forge-strong hover:bg-forge-strong/90 text-white shadow-glow"
             }`}
           >
             {isRecording ? (
               <>
                 <Square className="w-5 h-5 fill-current" />
-                <span>Stop Recording</span>
+                <span className="font-semibold">Stop & Paste</span>
               </>
             ) : (
               <>
                 <Mic className="w-5 h-5" />
-                <span>Start Dictation</span>
+                <span className="font-semibold">Start Dictation</span>
               </>
             )}
           </button>
@@ -189,6 +249,47 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             >
               <SettingsIcon className="w-3 h-3" /> Change in Settings
             </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Wispr Flow Voice Commands Guide Card */}
+      <div className="forge-card p-4 border border-white/10 bg-gradient-to-r from-[#18181B] to-[#121214]">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-amber-400" />
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-forge-text">
+              Wispr Flow Verbal Commands & Formatting
+            </h3>
+          </div>
+          <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800/30">
+            Active in Smart & Structured Modes
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 text-xs">
+          <div className="p-2.5 rounded-lg bg-black/40 border border-white/5 space-y-1">
+            <div className="font-semibold text-forge-accent">Paragraphs & Lines</div>
+            <div className="text-forge-muted font-mono text-[11px]">"new paragraph" → ↵↵</div>
+            <div className="text-forge-muted font-mono text-[11px]">"new line" → ↵</div>
+          </div>
+
+          <div className="p-2.5 rounded-lg bg-black/40 border border-white/5 space-y-1">
+            <div className="font-semibold text-amber-400">Self-Corrections</div>
+            <div className="text-forge-muted font-mono text-[11px]">"Tuesday, actually Thursday"</div>
+            <div className="text-forge-muted font-mono text-[11px]">"scratch that..."</div>
+          </div>
+
+          <div className="p-2.5 rounded-lg bg-black/40 border border-white/5 space-y-1">
+            <div className="font-semibold text-emerald-400">Lists & Bullets</div>
+            <div className="text-forge-muted font-mono text-[11px]">"bullet point ..." → •</div>
+            <div className="text-forge-muted font-mono text-[11px]">"checkbox ..." → ☐</div>
+          </div>
+
+          <div className="p-2.5 rounded-lg bg-black/40 border border-white/5 space-y-1">
+            <div className="font-semibold text-cyan-400">Headings & Steps</div>
+            <div className="text-forge-muted font-mono text-[11px]">"Title: / Heading:" → ###</div>
+            <div className="text-forge-muted font-mono text-[11px]">"first ..., then ..., finally"</div>
           </div>
         </div>
       </div>
