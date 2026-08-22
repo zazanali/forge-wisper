@@ -264,7 +264,11 @@ impl PipelineState {
 
         if cleaned.cleaned_text.trim().is_empty() {
             println!("[Forge Pipeline] Cleaned text is empty (no audible speech transcribed).");
-            self.set_state(&app, ProcessingState::Idle, None);
+            self.set_state(
+                &app,
+                ProcessingState::Error,
+                Some("No speech detected. In Settings, switch to 'Microphone Array' and check mic volume.".to_string()),
+            );
             return Ok(String::new());
         }
 
