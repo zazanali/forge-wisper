@@ -34,7 +34,7 @@ pub fn run() {
                                     let is_recording = state.is_active_recording.load(std::sync::atomic::Ordering::SeqCst);
                                     if is_recording {
                                         let app_handle = app.clone();
-                                        tokio::spawn(async move {
+                                        tauri::async_runtime::spawn(async move {
                                             let st = app_handle.state::<PipelineState>();
                                             let _ = st.stop_and_process(app_handle.clone()).await;
                                         });
@@ -50,7 +50,7 @@ pub fn run() {
                                 if !is_toggle {
                                     // Push-to-talk: key release stops recording & triggers pipeline
                                     let app_handle = app.clone();
-                                    tokio::spawn(async move {
+                                    tauri::async_runtime::spawn(async move {
                                         let st = app_handle.state::<PipelineState>();
                                         let _ = st.stop_and_process(app_handle.clone()).await;
                                     });

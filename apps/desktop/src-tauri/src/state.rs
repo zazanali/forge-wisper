@@ -126,7 +126,7 @@ impl PipelineState {
                 ProcessingState::Success | ProcessingState::Error | ProcessingState::Cancelled => {
                     // Stay visible briefly then hide
                     let app_clone = app.clone();
-                    tokio::spawn(async move {
+                    tauri::async_runtime::spawn(async move {
                         tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
                         if let Some(w) = app_clone.get_webview_window("recorder") {
                             let _ = w.hide();
