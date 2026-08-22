@@ -5,40 +5,39 @@ use forge_provider_local_whisper::{HardwareDetector, HardwareRecommendation, Loc
 use forge_security::SecretStore;
 use forge_storage::HistoryRecord;
 use forge_transcription::Transcript;
-use std::sync::Arc;
 use tauri::{AppHandle, State};
 
 #[tauri::command]
-pub fn get_processing_state(state: State<'_, Arc<PipelineState>>) -> ProcessingState {
-    *state.inner().current_state.lock().unwrap()
+pub fn get_processing_state(state: State<'_, PipelineState>) -> ProcessingState {
+    *state.current_state.lock().unwrap()
 }
 
 #[tauri::command]
-pub fn start_recording(app: AppHandle, state: State<'_, Arc<PipelineState>>) -> Result<(), String> {
-    state.inner().start_listening(&app)
+pub fn start_recording(app: AppHandle, state: State<'_, PipelineState>) -> Result<(), String> {
+    state.start_listening(&app)
 }
 
 #[tauri::command]
-pub async fn stop_recording(app: AppHandle, state: State<'_, Arc<PipelineState>>) -> Result<String, String> {
-    state.inner().stop_and_process(app).await
+pub async fn stop_recording(app: AppHandle, state: State<'_, PipelineState>) -> Result<String, String> {
+    state.stop_and_process(app).await
 }
 
 #[tauri::command]
-pub fn cancel_recording(app: AppHandle, state: State<'_, Arc<PipelineState>>) {
-    state.inner().cancel(&app);
+pub fn cancel_recording(app: AppHandle, state: State<'_, PipelineState>) {
+    state.cancel(&app);
 }
 
 #[tauri::command]
-pub fn get_settings(state: State<'_, Arc<PipelineState>>) -> AppSettings {
-    state.inner().settings.lock().unwrap().clone()
+pub fn get_settings(state: State<'_, PipelineState>) -> AppSettings {
+    state.settings.lock().unwrap().clone()
 }
 
 #[tauri::command]
 pub fn update_settings(
     settings: AppSettings,
-    state: State<'_, Arc<PipelineState>>,
+    state: State<'_, PipelineState>,
 ) -> Result<(), String> {
-    let mut s = state.inner().settings.lock().unwrap();
+    let mut s = state.settings.lock().unwrap();
     *s = settings;
     Ok(())
 }
@@ -66,10 +65,9 @@ pub fn delete_groq_api_key() -> Result<(), String> {
 #[tauri::command]
 pub async fn test_groq_connection(
     api_key: String,
-    state: State<'_, Arc<PipelineState>>,
+    state: State<'_, PipelineState>,
 ) -> Result<bool, String> {
     state
-        .inner()
         .groq_provider
         .test_connection(&api_key)
         .await
@@ -80,10 +78,9 @@ pub async fn test_groq_connection(
 pub fn list_history(
     limit: usize,
     search: Option<String>,
-    state: State<'_, Arc<PipelineState>>,
+    state: State<'_, PipelineState>,
 ) -> Result<Vec<HistoryRecord>, String> {
     state
-        .inner()
         .storage
         .list_records(limit, search.as_deref())
         .map_err(|e| e.to_string())
@@ -92,24 +89,23 @@ pub fn list_history(
 #[tauri::command]
 pub fn delete_history_item(
     id: String,
-    state: State<'_, Arc<PipelineState>>,
+    state: State<'_, PipelineState>,
 ) -> Result<bool, String> {
-    state.inner().storage.delete_record(&id).map_err(|e| e.to_string())
+    state.storage.delete_record(&id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn clear_history(state: State<'_, Arc<PipelineState>>) -> Result<(), String> {
-    state.inner().storage.clear_all().map_err(|e| e.to_string())
+pub fn clear_history(state: State<'_, PipelineState>) -> Result<(), String> {
+    state.storage.clear_all().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn reprocess_history_item(
     id: String,
     mode: FormattingMode,
-    state: State<'_, Arc<PipelineState>>,
+    state: State<'_, PipelineState>,
 ) -> Result<String, String> {
     let records = state
-        .inner()
         .storage
         .list_records(100, None)
         .map_err(|e| e.to_string())?;
@@ -130,7 +126,7 @@ pub fn reprocess_history_item(
 
     let options = CleanupOptions {
         mode,
-        dictionary: state.inner().settings.lock().unwrap().dictionary.clone(),
+        dictionary: state.settings.lock().unwrap().dictionary.clone(),
     };
 
     let cleaned = RuleBasedCleaner::clean(&dummy_transcript, &options).map_err(|e| e.to_string())?;
@@ -138,17 +134,16 @@ pub fn reprocess_history_item(
 }
 
 #[tauri::command]
-pub fn list_models(state: State<'_, Arc<PipelineState>>) -> Vec<LocalModelInfo> {
-    state.inner().model_manager.list_available_models()
+pub fn list_models(state: State<'_, PipelineState>) -> Vec<LocalModelInfo> {
+    state.model_manager.list_available_models()
 }
 
 #[tauri::command]
 pub async fn download_model(
     model_id: String,
-    state: State<'_, Arc<PipelineState>>,
+    state: State<'_, PipelineState>,
 ) -> Result<String, String> {
     state
-        .inner()
         .model_manager
         .download_model(&model_id)
         .await
@@ -159,10 +154,9 @@ pub async fn download_model(
 #[tauri::command]
 pub fn delete_model(
     model_id: String,
-    state: State<'_, Arc<PipelineState>>,
+    state: State<'_, PipelineState>,
 ) -> Result<bool, String> {
     state
-        .inner()
         .model_manager
         .delete_model(&model_id)
         .map_err(|e| e.to_string())

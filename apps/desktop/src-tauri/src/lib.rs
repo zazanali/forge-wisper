@@ -3,24 +3,23 @@ pub mod state;
 
 use commands::*;
 use state::PipelineState;
-use std::sync::Arc;
+use tauri::Manager;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let pipeline_state = Arc::new(PipelineState::new());
-    let state_clone = Arc::clone(&pipeline_state);
-
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
+        .manage(PipelineState::new())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(move |app, shortcut, event| {
                     let shortcut_str = shortcut.to_string();
+                    let state = app.state::<PipelineState>();
                     let (configured_hotkey, is_toggle) = {
-                        let s = state_clone.settings.lock().unwrap();
+                        let s = state.settings.lock().unwrap();
                         (s.hotkey.clone(), s.is_toggle_mode)
                     };
 
@@ -32,28 +31,28 @@ pub fn run() {
                         match event.state() {
                             ShortcutState::Pressed => {
                                 if is_toggle {
-                                    let is_recording = state_clone.is_active_recording.load(std::sync::atomic::Ordering::SeqCst);
+                                    let is_recording = state.is_active_recording.load(std::sync::atomic::Ordering::SeqCst);
                                     if is_recording {
                                         let app_handle = app.clone();
-                                        let st = Arc::clone(&state_clone);
                                         tokio::spawn(async move {
-                                            let _ = st.stop_and_process(app_handle).await;
+                                            let st = app_handle.state::<PipelineState>();
+                                            let _ = st.stop_and_process(app_handle.clone()).await;
                                         });
                                     } else {
-                                        let _ = state_clone.start_listening(app);
+                                        let _ = state.start_listening(app);
                                     }
                                 } else {
                                     // Push-to-talk: key press starts recording
-                                    let _ = state_clone.start_listening(app);
+                                    let _ = state.start_listening(app);
                                 }
                             }
                             ShortcutState::Released => {
                                 if !is_toggle {
                                     // Push-to-talk: key release stops recording & triggers pipeline
                                     let app_handle = app.clone();
-                                    let st = Arc::clone(&state_clone);
                                     tokio::spawn(async move {
-                                        let _ = st.stop_and_process(app_handle).await;
+                                        let st = app_handle.state::<PipelineState>();
+                                        let _ = st.stop_and_process(app_handle.clone()).await;
                                     });
                                 }
                             }
@@ -62,7 +61,6 @@ pub fn run() {
                 })
                 .build(),
         )
-        .manage(pipeline_state)
         .setup(|app| {
             // Register default global hotkey: Ctrl+Space
             let shortcut = "Control+Space".parse::<Shortcut>().unwrap();
