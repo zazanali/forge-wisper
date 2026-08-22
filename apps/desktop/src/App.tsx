@@ -15,7 +15,6 @@ import {
   Zap,
   ShieldCheck,
   PanelLeftClose,
-  PanelLeftOpen,
 } from "lucide-react";
 
 type Tab = "dashboard" | "history" | "models" | "settings";
@@ -99,7 +98,7 @@ export const App: React.FC = () => {
               </button>
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col items-center">
               {/* Click Logo to Open Menu */}
               <button
                 onClick={() => setIsSidebarOpen(true)}
@@ -109,14 +108,6 @@ export const App: React.FC = () => {
                 <Mic className="w-5 h-5" />
                 {/* Glow ring */}
                 <span className="absolute inset-0 rounded-xl bg-[#FF4D5E] opacity-0 group-hover:opacity-30 blur-sm transition-opacity" />
-              </button>
-
-              <button
-                onClick={() => setIsSidebarOpen(true)}
-                title="Open sidebar menu"
-                className="p-1.5 rounded-xl text-[#9BA3B5] hover:text-[#3FE3C4] hover:bg-[#1C2028] transition-colors"
-              >
-                <PanelLeftOpen className="w-4 h-4" />
               </button>
             </div>
           )}
