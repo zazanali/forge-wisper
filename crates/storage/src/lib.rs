@@ -81,6 +81,10 @@ impl StorageEngine {
 
     fn init_schema(&self) -> Result<(), StorageError> {
         let conn = self.conn.lock().unwrap();
+
+        // Production pragmas for concurrency and performance
+        let _ = conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; PRAGMA synchronous=NORMAL;");
+
         conn.execute(
             "CREATE TABLE IF NOT EXISTS dictation_history (
                 id TEXT PRIMARY KEY,

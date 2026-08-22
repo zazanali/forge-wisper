@@ -263,7 +263,7 @@ fn resample_linear(input: &[f32], src_rate: u32, target_rate: u32) -> Vec<f32> {
 
     for i in 0..target_len {
         let src_idx = i as f64 * ratio;
-        let idx0 = src_idx.floor() as usize;
+        let idx0 = (src_idx.floor() as usize).min(input.len() - 1);
         let idx1 = (idx0 + 1).min(input.len() - 1);
         let frac = (src_idx - idx0 as f64) as f32;
 
@@ -288,7 +288,12 @@ pub fn encode_pcm16_wav(samples: &[f32], sample_rate: u32) -> Result<Vec<u8>, Au
     let mut writer = WavWriter::new(&mut cursor, spec)
         .map_err(|e| AudioError::EncodingError(e.to_string()))?;
 
-    for &sample in samples {
+    for &raw_sample in samples {
+        let sample = if raw_sample.is_nan() || raw_sample.is_infinite() {
+            0.0f32
+        } else {
+            raw_sample
+        };
         let clamped = sample.clamp(-1.0, 1.0);
         let int_val = (clamped * 32767.0).round() as i16;
         writer
