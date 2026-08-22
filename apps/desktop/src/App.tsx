@@ -254,27 +254,6 @@ export const App: React.FC = () => {
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col h-full overflow-hidden bg-[#0C0E14]">
-        {/* Top Header Bar when sidebar is collapsed (Gemini app style) */}
-        {!isSidebarOpen && (
-          <div className="px-8 pt-6 flex items-center justify-between border-b border-white/5 pb-4">
-            <button
-              onClick={() => setIsSidebarOpen(true)}
-              title="Expand menu"
-              className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-[#151820] hover:bg-[#1C2028] border border-[#2A2E38] text-xs font-semibold text-[#E8ECF2] transition-all hover:border-[#FF4D5E]/40 group"
-            >
-              <PanelLeftOpen className="w-4 h-4 text-[#FF4D5E] group-hover:scale-110 transition-transform" />
-              <span>Open Menu</span>
-            </button>
-
-            <div className="flex items-center gap-2 text-xs font-display font-bold text-[#9BA3B5]">
-              <span>Forge<span className="text-[#FF4D5E]">Wisper</span></span>
-              <span className="text-[10px] font-mono text-[#3FE3C4] bg-[#3FE3C4]/10 px-2 py-0.5 rounded-md border border-[#3FE3C4]/20">
-                ACTIVE
-              </span>
-            </div>
-          </div>
-        )}
-
         {/* Scrollable View Container */}
         <div className="flex-1 overflow-y-auto p-8 max-w-5xl w-full mx-auto">
           {currentTab === "dashboard" && <Dashboard onNavigate={setCurrentTab} />}
