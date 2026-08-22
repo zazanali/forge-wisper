@@ -84,6 +84,7 @@ lazy_static! {
 impl RuleBasedCleaner {
     pub fn clean(transcript: &Transcript, options: &CleanupOptions) -> Result<CleanedTranscript, CleanupError> {
         let raw = transcript.text.trim();
+        let raw = Self::scrub_whisper_hallucinations(raw);
 
         if raw.is_empty() {
             return Ok(CleanedTranscript {
@@ -275,6 +276,26 @@ impl RuleBasedCleaner {
 
         text
     }
+
+    /// Scrubs common Whisper silence/cut-off hallucinations ("Thank you.", "Thank you for watching.", etc.)
+    pub fn scrub_whisper_hallucinations(input: &str) -> &str {
+        let trimmed = input.trim().trim_end_matches(['.', '!', '?']).trim();
+        let is_hallucination = trimmed.eq_ignore_ascii_case("thank you")
+            || trimmed.eq_ignore_ascii_case("thank you for watching")
+            || trimmed.eq_ignore_ascii_case("thank you very much")
+            || trimmed.eq_ignore_ascii_case("thanks for watching")
+            || trimmed.eq_ignore_ascii_case("thanks for listening")
+            || trimmed.eq_ignore_ascii_case("subtitles by the amara.org community")
+            || trimmed.eq_ignore_ascii_case("you")
+            || trimmed.eq_ignore_ascii_case("bye")
+            || trimmed.eq_ignore_ascii_case("goodbye");
+
+        if is_hallucination {
+            ""
+        } else {
+            input
+        }
+    }
 }
 
 #[cfg(test)]
@@ -342,5 +363,21 @@ mod tests {
         assert!(cleaned.cleaned_text.contains("Hello,"));
         assert!(cleaned.cleaned_text.contains("1. Local Whisper"));
         assert!(cleaned.cleaned_text.contains("2. Groq."));
+    }
+
+    #[test]
+    fn test_whisper_hallucination_scrub() {
+        let transcript = Transcript {
+            text: "Thank you.".to_string(),
+            language: "en".to_string(),
+            provider: "groq".to_string(),
+            model: "whisper-large-v3-turbo".to_string(),
+            duration_ms: 1000,
+            confidence: Some(0.98),
+        };
+
+        let options = CleanupOptions::default();
+        let cleaned = RuleBasedCleaner::clean(&transcript, &options).unwrap();
+        assert_eq!(cleaned.cleaned_text, "");
     }
 }

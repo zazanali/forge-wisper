@@ -139,13 +139,13 @@ impl TranscriptionProvider for GroqTranscriptionProvider {
             }
         }
 
-        if let Some(prompt) = options.prompt {
-            form = form.text("prompt", prompt);
-        }
+        let prompt = options
+            .prompt
+            .unwrap_or_else(|| "Accurate speech dictation transcription.".to_string());
+        form = form.text("prompt", prompt);
 
-        if let Some(temp) = options.temperature {
-            form = form.text("temperature", temp.to_string());
-        }
+        let temp = options.temperature.unwrap_or(0.0);
+        form = form.text("temperature", temp.to_string());
 
         let response = self
             .client

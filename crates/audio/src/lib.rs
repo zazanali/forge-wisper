@@ -206,12 +206,32 @@ impl AudioRecorder {
             raw_samples
         };
 
+        // Check if audio has sufficient signal (silence detection)
+        let max_abs = mono_samples
+            .iter()
+            .map(|s| s.abs())
+            .fold(0.0f32, f32::max);
+
+        if max_abs < 0.0015 {
+            return Err(AudioError::EncodingError(
+                "Audio is silent. Please check your microphone input level and speak clearly.".to_string(),
+            ));
+        }
+
+        // Peak Normalization / AGC: Scale quiet microphone audio to optimal Whisper amplitude (~0.75 peak)
+        let target_peak = 0.75f32;
+        let gain = (target_peak / max_abs).clamp(1.0, 50.0);
+        let normalized_samples: Vec<f32> = mono_samples
+            .into_iter()
+            .map(|s| (s * gain).clamp(-1.0, 1.0))
+            .collect();
+
         // Resample to 16,000 Hz if needed (Whisper target sample rate)
         let target_sample_rate = 16000u32;
         let resampled: Vec<f32> = if self.source_sample_rate != target_sample_rate {
-            resample_linear(&mono_samples, self.source_sample_rate, target_sample_rate)
+            resample_linear(&normalized_samples, self.source_sample_rate, target_sample_rate)
         } else {
-            mono_samples
+            normalized_samples
         };
 
         // Encode into 16-bit PCM WAV in memory
