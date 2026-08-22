@@ -109,7 +109,7 @@ impl AudioRecorder {
         let recording_clone = Arc::clone(&is_recording);
 
         let err_fn = |err| {
-            tracing::error!("Audio stream error: {:?}", err);
+            eprintln!("[Forge Audio] Stream error: {:?}", err);
         };
 
         let stream = match sample_format {
@@ -174,6 +174,11 @@ impl AudioRecorder {
             .play()
             .map_err(|e| AudioError::StreamError(e.to_string()))?;
 
+        println!(
+            "[Forge Audio] Audio recording started. Sample rate: {} Hz, Channels: {}, Format: {:?}",
+            sample_rate, channels, sample_format
+        );
+
         Ok(Self {
             is_recording,
             audio_buffer,
@@ -204,7 +209,7 @@ impl AudioRecorder {
                 .map(|chunk| chunk.iter().sum::<f32>() / chunk.len() as f32)
                 .collect()
         } else {
-            raw_samples
+            raw_samples.clone()
         };
 
         // Peak Normalization / AGC: Scale quiet microphone audio to optimal Whisper amplitude (~0.80 peak)
@@ -231,6 +236,13 @@ impl AudioRecorder {
         } else {
             normalized_samples
         };
+
+        println!(
+            "[Forge Audio] Captured {} raw samples (Peak amplitude: {:.4}). Encoded {} samples at 16kHz.",
+            raw_samples.len(),
+            max_abs,
+            resampled.len()
+        );
 
         // Encode into 16-bit PCM WAV in memory
         encode_pcm16_wav(&resampled, target_sample_rate)

@@ -175,6 +175,8 @@ impl TranscriptionProvider for GroqTranscriptionProvider {
             .await
             .map_err(|e| ProviderError::InternalError(e.to_string()))?;
 
+        println!("[Forge Groq] Received transcription from Groq: {:?}", groq_res.text);
+
         Ok(Transcript {
             text: groq_res.text,
             language: groq_res.language.unwrap_or_else(|| "en".to_string()),

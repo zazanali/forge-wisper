@@ -262,6 +262,12 @@ impl PipelineState {
             }
         };
 
+        if cleaned.cleaned_text.trim().is_empty() {
+            println!("[Forge Pipeline] Cleaned text is empty (no audible speech transcribed).");
+            self.set_state(&app, ProcessingState::Idle, None);
+            return Ok(String::new());
+        }
+
         // 4. Verify
         self.set_state(&app, ProcessingState::Verifying, None);
         let verification = VerificationEngine::verify(&cleaned.raw_text, &cleaned.cleaned_text);
