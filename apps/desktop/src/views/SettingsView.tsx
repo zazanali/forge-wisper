@@ -38,17 +38,18 @@ export const SettingsView: React.FC = () => {
 
   const [isMicTesting, setIsMicTesting] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
-  const audioContextRef = React.useRef<AudioContext | null>(null);
-  const animFrameRef = React.useRef<number | null>(null);
+  const intervalRef = React.useRef<number | null>(null);
 
   const toggleMicTest = async () => {
     if (isMicTesting) {
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
-        audioContextRef.current = null;
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
-      if (animFrameRef.current) {
-        cancelAnimationFrame(animFrameRef.current);
+      try {
+        await api.cancelRecording();
+      } catch {
+        // ignore
       }
       setIsMicTesting(false);
       setMicLevel(0);
@@ -56,40 +57,28 @@ export const SettingsView: React.FC = () => {
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const audioCtx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-      audioContextRef.current = audioCtx;
-      const source = audioCtx.createMediaStreamSource(stream);
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 256;
-      source.connect(analyser);
-
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      await api.startRecording();
       setIsMicTesting(true);
 
-      const updateLevel = () => {
-        analyser.getByteFrequencyData(dataArray);
-        let sum = 0;
-        for (let i = 0; i < dataArray.length; i++) {
-          sum += dataArray[i];
+      intervalRef.current = window.setInterval(async () => {
+        try {
+          const rms = await api.getMicLevel();
+          // Scale float RMS (0.0 to 0.4) to 0-100 percentage
+          const percent = Math.min(100, Math.round(rms * 500));
+          setMicLevel(percent);
+        } catch {
+          // ignore
         }
-        const avg = sum / dataArray.length;
-        setMicLevel(Math.min(100, Math.round((avg / 128) * 100)));
-        animFrameRef.current = requestAnimationFrame(updateLevel);
-      };
-      updateLevel();
+      }, 60);
     } catch (e) {
-      alert("Microphone permission required. Please ensure Windows microphone access is enabled for desktop apps.");
+      alert(`Microphone Error: ${e}`);
     }
   };
 
   useEffect(() => {
     return () => {
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
-      }
-      if (animFrameRef.current) {
-        cancelAnimationFrame(animFrameRef.current);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
       }
     };
   }, []);

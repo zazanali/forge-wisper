@@ -90,6 +90,9 @@ impl AudioRecorder {
                 .ok_or_else(|| AudioError::NoDevice("No default input device found".to_string()))?,
         };
 
+        let device_display_name = device.name().unwrap_or_else(|_| "Unknown Device".to_string());
+        println!("[Forge Audio] Opening capture device: '{}'", device_display_name);
+
         let default_config = device
             .default_input_config()
             .map_err(|e| AudioError::ConfigError(e.to_string()))?;
@@ -323,5 +326,20 @@ mod tests {
         let input = vec![0.0, 1.0, 0.0, -1.0];
         let resampled = resample_linear(&input, 4, 8);
         assert_eq!(resampled.len(), 8);
+    }
+
+    #[test]
+    fn test_list_and_probe_input_devices() {
+        let devices = list_input_devices();
+        println!("\n=== AUDIO INPUT DEVICES FOUND ===");
+        match devices {
+            Ok(devs) => {
+                for (i, d) in devs.iter().enumerate() {
+                    println!("[{}] {} (default: {})", i, d.name, d.is_default);
+                }
+            }
+            Err(e) => println!("Error listing devices: {:?}", e),
+        }
+        println!("=================================\n");
     }
 }

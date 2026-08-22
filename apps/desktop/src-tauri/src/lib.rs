@@ -70,6 +70,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_processing_state,
             start_recording,
+            get_mic_level,
             stop_recording,
             cancel_recording,
             get_settings,

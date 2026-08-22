@@ -18,6 +18,16 @@ pub fn start_recording(app: AppHandle, state: State<'_, PipelineState>) -> Resul
 }
 
 #[tauri::command]
+pub fn get_mic_level(state: State<'_, PipelineState>) -> f32 {
+    let lock = state.active_recorder.lock().unwrap();
+    if let Some(ref rec) = *lock {
+        rec.get_current_rms()
+    } else {
+        0.0
+    }
+}
+
+#[tauri::command]
 pub async fn stop_recording(app: AppHandle, state: State<'_, PipelineState>) -> Result<String, String> {
     state.stop_and_process(app).await
 }

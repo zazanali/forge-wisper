@@ -13,6 +13,7 @@ import type {
 export const api = {
   getProcessingState: () => invoke<ProcessingState>("get_processing_state"),
   startRecording: () => invoke<void>("start_recording"),
+  getMicLevel: () => invoke<number>("get_mic_level"),
   stopRecording: () => invoke<string>("stop_recording"),
   cancelRecording: () => invoke<void>("cancel_recording"),
 
