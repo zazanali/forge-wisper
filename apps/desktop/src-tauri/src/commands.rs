@@ -77,9 +77,15 @@ pub async fn test_groq_connection(
     api_key: String,
     state: State<'_, PipelineState>,
 ) -> Result<bool, String> {
+    let key = if api_key.trim().is_empty() {
+        SecretStore::get_secret("groq_api_key")
+            .map_err(|_| "No API key found in Keyring. Please enter an API key.".to_string())?
+    } else {
+        api_key
+    };
     state
         .groq_provider
-        .test_connection(&api_key)
+        .test_connection(&key)
         .await
         .map_err(|e| e.to_string())
 }

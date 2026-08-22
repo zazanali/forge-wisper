@@ -35,6 +35,7 @@ export const SettingsView: React.FC = () => {
   const [newSpoken, setNewSpoken] = useState("");
   const [newPreferred, setNewPreferred] = useState("");
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isKeySaved, setIsKeySaved] = useState(false);
 
   const [isMicTesting, setIsMicTesting] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
@@ -117,19 +118,11 @@ export const SettingsView: React.FC = () => {
       await api.setGroqKey(apiKeyInput.trim());
       setApiKeyInput("");
       setHasStoredKey(true);
+      setIsKeySaved(true);
       setTestResult({ success: true, msg: "API Key saved securely in OS Keyring" });
+      setTimeout(() => setIsKeySaved(false), 3000);
     } catch (e) {
       setTestResult({ success: false, msg: `Failed to save key: ${e}` });
-    }
-  };
-
-  const removeGroqKey = async () => {
-    try {
-      await api.deleteGroqKey();
-      setHasStoredKey(false);
-      setTestResult({ success: true, msg: "API Key removed from Keyring" });
-    } catch (e) {
-      console.error(e);
     }
   };
 
@@ -302,7 +295,7 @@ export const SettingsView: React.FC = () => {
               onChange={(e) => setApiKeyInput(e.target.value)}
               placeholder={
                 hasStoredKey
-                  ? "•••••••••••••••••••••••••••• (Key is saved)"
+                  ? "•••••••••••••••••••••••••••• (Saved)"
                   : "Enter your gsk_... API key"
               }
               className="flex-1 px-3.5 py-2 bg-[#0C0E14] border border-[#2A2E38] rounded-xl text-sm text-[#E8ECF2] focus:outline-none focus:border-[#FF4D5E] font-mono"
@@ -311,26 +304,28 @@ export const SettingsView: React.FC = () => {
               <button
                 onClick={saveGroqKey}
                 disabled={!apiKeyInput.trim()}
-                className="px-4 py-2 bg-[#1C2028] hover:bg-[#252A34] border border-[#2A2E38] rounded-xl text-xs font-semibold text-[#E8ECF2] disabled:opacity-40 transition-colors"
+                className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                  isKeySaved
+                    ? "bg-[#3FE3C4]/15 text-[#3FE3C4] border border-[#3FE3C4]/40"
+                    : "bg-[#1C2028] hover:bg-[#252A34] border border-[#2A2E38] text-[#E8ECF2] disabled:opacity-40"
+                }`}
               >
-                Save Key
+                {isKeySaved ? (
+                  <span className="flex items-center gap-1.5 font-bold">
+                    <Check className="w-3.5 h-3.5 text-[#3FE3C4]" /> Saved
+                  </span>
+                ) : (
+                  "Save Key"
+                )}
               </button>
               <button
                 onClick={testConnection}
-                disabled={isTestingKey}
+                disabled={isTestingKey || (!apiKeyInput.trim() && !hasStoredKey)}
                 className="px-4 py-2 btn-blade rounded-xl text-xs font-semibold text-white disabled:opacity-50 flex items-center gap-1.5"
               >
                 {isTestingKey && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 Test Connection
               </button>
-              {hasStoredKey && (
-                <button
-                  onClick={removeGroqKey}
-                  className="px-3 py-2 bg-[#FF4D5E]/15 hover:bg-[#FF4D5E]/25 text-[#FF4D5E] border border-[#FF4D5E]/30 rounded-xl text-xs font-semibold transition-colors"
-                >
-                  Remove
-                </button>
-              )}
             </div>
           </div>
 
