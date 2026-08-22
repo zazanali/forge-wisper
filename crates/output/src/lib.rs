@@ -38,20 +38,20 @@ impl OutputEngine {
         let mut enigo = Enigo::new(&Settings::default())
             .map_err(|e| OutputError::SimulationError(e.to_string()))?;
 
-        // Give a short 30ms breath for window focus
-        sleep(Duration::from_millis(30));
+        // Give a short 50ms breath for window focus
+        sleep(Duration::from_millis(50));
 
         #[cfg(target_os = "macos")]
         {
             enigo.key(Key::Meta, Direction::Press).map_err(|e| OutputError::SimulationError(e.to_string()))?;
-            enigo.key(Key::Unicode('v'), Direction::Click).map_err(|e| OutputError::SimulationError(e.to_string()))?;
+            enigo.key(Key::V, Direction::Click).map_err(|e| OutputError::SimulationError(e.to_string()))?;
             enigo.key(Key::Meta, Direction::Release).map_err(|e| OutputError::SimulationError(e.to_string()))?;
         }
 
         #[cfg(not(target_os = "macos"))]
         {
             enigo.key(Key::Control, Direction::Press).map_err(|e| OutputError::SimulationError(e.to_string()))?;
-            enigo.key(Key::Unicode('v'), Direction::Click).map_err(|e| OutputError::SimulationError(e.to_string()))?;
+            enigo.key(Key::V, Direction::Click).map_err(|e| OutputError::SimulationError(e.to_string()))?;
             enigo.key(Key::Control, Direction::Release).map_err(|e| OutputError::SimulationError(e.to_string()))?;
         }
 
@@ -66,9 +66,12 @@ impl OutputEngine {
 
         // Step 2: Attempt simulated paste
         match Self::simulate_paste() {
-            Ok(()) => Ok(PasteOutcome::Pasted),
+            Ok(()) => {
+                println!("[Forge Output] Successfully simulated Ctrl+V paste ({} characters).", text.len());
+                Ok(PasteOutcome::Pasted)
+            }
             Err(e) => {
-                tracing::warn!("Simulated paste failed ({:?}), fallback to clipboard retention", e);
+                eprintln!("[Forge Output] Simulated paste failed ({:?}), retained in clipboard.", e);
                 Ok(PasteOutcome::CopiedToClipboardFallback)
             }
         }

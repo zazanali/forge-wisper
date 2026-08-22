@@ -36,6 +36,64 @@ export const SettingsView: React.FC = () => {
   const [newPreferred, setNewPreferred] = useState("");
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  const [isMicTesting, setIsMicTesting] = useState(false);
+  const [micLevel, setMicLevel] = useState(0);
+  const audioContextRef = React.useRef<AudioContext | null>(null);
+  const animFrameRef = React.useRef<number | null>(null);
+
+  const toggleMicTest = async () => {
+    if (isMicTesting) {
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+      }
+      setIsMicTesting(false);
+      setMicLevel(0);
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const audioCtx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      audioContextRef.current = audioCtx;
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      setIsMicTesting(true);
+
+      const updateLevel = () => {
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          sum += dataArray[i];
+        }
+        const avg = sum / dataArray.length;
+        setMicLevel(Math.min(100, Math.round((avg / 128) * 100)));
+        animFrameRef.current = requestAnimationFrame(updateLevel);
+      };
+      updateLevel();
+    } catch (e) {
+      alert("Microphone permission required. Please ensure Windows microphone access is enabled for desktop apps.");
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     loadSettings();
   }, []);
@@ -333,27 +391,70 @@ export const SettingsView: React.FC = () => {
           <Mic className="w-4 h-4" /> Microphone (§10)
         </h3>
 
-        <div className="forge-card p-4">
-          <label className="text-xs text-forge-muted block mb-1.5">
-            Input Device
-          </label>
-          <select
-            value={settings.microphone || ""}
-            onChange={(e) =>
-              handleSave({
-                ...settings,
-                microphone: e.target.value ? e.target.value : null,
-              })
-            }
-            className="w-full px-3 py-2 bg-forge-bg border border-white/10 rounded-md text-sm text-forge-text focus:outline-none focus:border-forge-accent/40"
-          >
-            <option value="">System Default Microphone</option>
-            {audioDevices.map((d) => (
-              <option key={d.name} value={d.name}>
-                {d.name} {d.is_default ? "(Default)" : ""}
-              </option>
-            ))}
-          </select>
+        <div className="forge-card p-4 space-y-3">
+          <div>
+            <label className="text-xs text-forge-muted block mb-1.5">
+              Input Device
+            </label>
+            <select
+              value={settings.microphone || ""}
+              onChange={(e) =>
+                handleSave({
+                  ...settings,
+                  microphone: e.target.value ? e.target.value : null,
+                })
+              }
+              className="w-full px-3 py-2 bg-forge-bg border border-white/10 rounded-md text-sm text-forge-text focus:outline-none focus:border-forge-accent/40"
+            >
+              <option value="">System Default Microphone</option>
+              {audioDevices.map((d) => (
+                <option key={d.name} value={d.name}>
+                  {d.name} {d.is_default ? "(Default)" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="pt-2 border-t border-white/5 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-forge-muted">Microphone Level Test</span>
+              <button
+                type="button"
+                onClick={toggleMicTest}
+                className={`px-3 py-1.5 rounded text-xs font-medium transition-all ${
+                  isMicTesting
+                    ? "bg-red-500/20 text-red-400 border border-red-500/30 animate-pulse"
+                    : "bg-forge-accent/20 text-forge-accent hover:bg-forge-accent/30 border border-forge-accent/30"
+                }`}
+              >
+                {isMicTesting ? "Stop Live Test" : "Test Live Microphone"}
+              </button>
+            </div>
+
+            {isMicTesting && (
+              <div className="space-y-1.5 pt-1">
+                <div className="h-3 bg-forge-bg rounded-full overflow-hidden border border-white/10 p-0.5">
+                  <div
+                    className={`h-full rounded-full transition-all duration-75 ${
+                      micLevel > 60
+                        ? "bg-amber-400"
+                        : micLevel > 10
+                        ? "bg-emerald-400"
+                        : "bg-forge-muted"
+                    }`}
+                    style={{ width: `${Math.max(4, micLevel)}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-[10px] text-forge-muted">
+                  <span>Mute</span>
+                  <span className={micLevel > 15 ? "text-emerald-400 font-bold" : ""}>
+                    {micLevel > 15 ? "Sound Detected ✓" : "Speak to test..."}
+                  </span>
+                  <span>Max</span>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
