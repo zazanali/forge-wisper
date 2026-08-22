@@ -25,6 +25,21 @@ impl SecretStore {
     }
 
     pub fn get_secret(key: &str) -> Result<String, SecurityError> {
+        // First check environment variable (e.g. GROQ_API_KEY)
+        let env_key = key.to_uppercase();
+        if let Ok(val) = std::env::var(&env_key) {
+            if !val.trim().is_empty() {
+                return Ok(val.trim().to_string());
+            }
+        }
+        if key == "groq_api_key" {
+            if let Ok(val) = std::env::var("GROQ_API_KEY") {
+                if !val.trim().is_empty() {
+                    return Ok(val.trim().to_string());
+                }
+            }
+        }
+
         let entry = Entry::new(SERVICE_NAME, key)
             .map_err(|e| SecurityError::KeyringError(e.to_string()))?;
         match entry.get_password() {

@@ -81,10 +81,16 @@ impl PipelineState {
                 .map_err(|e| ProviderError::AuthenticationError(e.to_string()))
         }));
 
+        let mut default_settings = AppSettings::default();
+        if SecretStore::get_secret("groq_api_key").is_ok() {
+            default_settings.provider = "groq".to_string();
+            default_settings.model = "whisper-large-v3-turbo".to_string();
+        }
+
         Self {
             current_state: Mutex::new(ProcessingState::Idle),
             current_error: Mutex::new(None),
-            settings: Mutex::new(AppSettings::default()),
+            settings: Mutex::new(default_settings),
             active_recorder: Mutex::new(None),
             is_active_recording: AtomicBool::new(false),
             storage,

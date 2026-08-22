@@ -68,6 +68,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   return (
     <div className="space-y-6 animate-fadeIn">
+      {/* Mock Engine Notice */}
+      {settings?.provider === "mock" && (
+        <div className="p-3.5 bg-amber-950/40 border border-amber-500/30 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-amber-200">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>
+              <strong>Currently using Mock Engine:</strong> Transcribing with pre-set sample text. Switch to <strong>Groq Whisper</strong> or <strong>Local Whisper</strong> to transcribe your real voice.
+            </span>
+          </div>
+          <button
+            onClick={() => onNavigate("settings")}
+            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-black font-semibold rounded text-xs shrink-0 transition"
+          >
+            Configure in Settings →
+          </button>
+        </div>
+      )}
+
       {/* Hero Dictation Card */}
       <div className="forge-card p-6 bg-gradient-to-b from-[#1C1B1B] to-[#141414] relative overflow-hidden border border-white/10">
         <div className="absolute top-0 right-0 w-64 h-64 bg-forge-strong/10 rounded-full blur-3xl pointer-events-none" />
