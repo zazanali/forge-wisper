@@ -43,8 +43,10 @@ jobs:
         with:
           workspaces: './ -> target'
 
-      - name: Install frontend dependencies
-        run: pnpm install --no-frozen-lockfile
+      - name: Install frontend dependencies & build UI
+        run: |
+          pnpm install --no-frozen-lockfile
+          pnpm --filter @forge-wisper/desktop build
 
       - name: Build Tauri Application & Generate Installers
         uses: tauri-apps/tauri-action@v0
