@@ -99,3 +99,9 @@ desktop.ini
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+
+# --- Internal Specifications & PRD Documents ---
+*PRD*
+*.PRD.md
+*.prd.md
+
