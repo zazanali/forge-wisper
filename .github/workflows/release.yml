@@ -15,22 +15,23 @@ jobs:
       matrix:
         include:
           - platform: 'windows-latest'
-            args: '--bundles nsis,msi'
+            args: '--bundles nsis'
 
     runs-on: ${{ matrix.platform }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
+          node-version: 22
+          cache: 'pnpm'
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -43,21 +44,27 @@ jobs:
           workspaces: './ -> target'
 
       - name: Install frontend dependencies
-        run: pnpm install
+        run: pnpm install --no-frozen-lockfile
 
       - name: Build Tauri Application & Generate Installers
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: v__VERSION__
-          releaseName: 'Forge Wisper v__VERSION__'
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Forge Wisper ${{ github.ref_name }}'
           releaseBody: |
-            See the assets to download this version and install.
+            ## Forge Wisper Desktop Setup (${{ github.ref_name }})
+            
+            Download and run the official Windows installer below to install **Forge Wisper**.
+            
             ### Highlights
-            - Real-time cloud & offline speech dictation
-            - Automated speech cleanup & punctuation formatting
-            - Full NSIS (.exe) and MSI (.msi) Windows installers
+            - 🎙️ **Frictionless Global Dictation**: Press `Ctrl + Space` anywhere to speak.
+            - ⚡ **Dual AI Engines**: Ultra-fast Groq Cloud & 100% Offline Local Whisper.
+            - 🧠 **Smart Speech Cleanup**: Automatic filler removal, self-corrections & verbal punctuation.
+            - 🛡️ **Privacy First**: In-memory audio processing with zero disk persistence.
+            
+            *Created by Ali Zazan • Built for creators and developers.*
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
