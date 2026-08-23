@@ -1,6 +1,12 @@
-# Security & Privacy Policy 🛡️
+<div align="center">
 
-At **Forge Wisper**, security and user privacy are fundamental architectural principles. This document outlines our security guarantees, data handling practices, and the process for reporting vulnerabilities.
+<img src="apps/desktop/src-tauri/icons/icon.png" alt="Forge Wisper Logo" width="100" />
+
+# Security & Privacy Policy
+
+**Next-Generation Open-Source Voice-to-Structured-Text Desktop Application**
+
+</div>
 
 ---
 

@@ -1,4 +1,14 @@
-# Contributing to Forge Wisper 🎙️
+<div align="center">
+
+<img src="apps/desktop/src-tauri/icons/icon.png" alt="Forge Wisper Logo" width="100" />
+
+# Contributing to Forge Wisper
+
+**Next-Generation Open-Source Voice-to-Structured-Text Desktop Application**
+
+</div>
+
+---
 
 Thank you for your interest in contributing to **Forge Wisper**! We welcome contributions of all kinds: bug fixes, new features, rule-based cleanup enhancements, documentation, and UI/UX improvements.
 
@@ -35,7 +45,7 @@ Forge Wisper is structured as a **Cargo Workspace & pnpm Monorepo**:
 ### 2. Getting Started
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/forge-wisper.git
+git clone https://github.com/zazanali/forge-wisper.git
 cd forge-wisper
 
 # Install frontend dependencies
