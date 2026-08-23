@@ -1,8 +1,8 @@
 {
-  "$schema": "./gen/schemas/desktop-schema.json",
+  "$schema": "https://schema.tauri.app/config/2",
   "productName": "Forge Wisper",
   "version": "0.1.0",
-  "identifier": "com.forge.wisper",
+  "identifier": "com.alizazan.forgewisper",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -48,12 +48,24 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "publisher": "Ali Zazan",
+    "copyright": "Copyright © 2026 Ali Zazan",
+    "category": "DeveloperTool",
+    "shortDescription": "AI Voice-to-Text and Smart Dictation Desktop Application",
+    "longDescription": "High-performance, privacy-first desktop voice-to-text application created by Ali Zazan.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "headerImage": "icons/header.bmp",
+        "installMode": "currentUser"
+      }
+    }
   }
 }

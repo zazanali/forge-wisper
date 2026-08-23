@@ -27,7 +27,6 @@ forge-output = { path = "../../../crates/output" }
 forge-storage = { path = "../../../crates/storage" }
 forge-security = { path = "../../../crates/security" }
 
-forge-provider-mock = { path = "../../../providers/mock" }
 forge-provider-groq = { path = "../../../providers/groq" }
 forge-provider-local-whisper = { path = "../../../providers/local-whisper" }
 
@@ -38,5 +37,6 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }
+directories = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }

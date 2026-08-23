@@ -4,14 +4,55 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Forge Wisper</title>
+    <link rel="icon" type="image/svg+xml" href="/forge-wisper-logo.svg" />
+
+    <!-- Instant Zero-Delay Clean Paint on startup with System Theme support -->
+    <style>
+      html, body, #root {
+        background-color: #F3F5F9;
+        color: #0B0E14;
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+      [data-theme="dark"] html,
+      [data-theme="dark"] body,
+      [data-theme="dark"] #root {
+        background-color: #0C0E14 !important;
+        color: #E8ECF2 !important;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) html,
+        :root:not([data-theme="light"]) body,
+        :root:not([data-theme="light"]) #root,
+        [data-theme="system"] html,
+        [data-theme="system"] body,
+        [data-theme="system"] #root {
+          background-color: #0C0E14 !important;
+          color: #E8ECF2 !important;
+        }
+      }
+    </style>
+
+    <!-- Asynchronous Non-blocking Google Fonts with System Fallbacks -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
+      rel="preload"
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700;800&display=swap"
-      rel="stylesheet"
+      as="style"
+      onload="this.onload=null;this.rel='stylesheet'"
     />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700;800&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
   </head>
-  <body class="bg-[#0C0E14] text-[#E8ECF2] font-sans antialiased overflow-hidden select-none">
+  <body class="bg-[var(--bg)] text-[var(--text-1)] font-sans antialiased overflow-hidden select-none">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

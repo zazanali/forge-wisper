@@ -6,6 +6,7 @@ use forge_security::SecretStore;
 use forge_storage::HistoryRecord;
 use forge_transcription::Transcript;
 use tauri::{AppHandle, State};
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
 
 #[tauri::command]
 pub fn get_processing_state(state: State<'_, PipelineState>) -> ProcessingState {
@@ -44,10 +45,23 @@ pub fn get_settings(state: State<'_, PipelineState>) -> AppSettings {
 
 #[tauri::command]
 pub fn update_settings(
+    app: AppHandle,
     settings: AppSettings,
     state: State<'_, PipelineState>,
 ) -> Result<(), String> {
+    settings.save();
     let mut s = state.settings.lock().unwrap();
+
+    // Dynamically update OS global hotkey registration if changed
+    if s.hotkey != settings.hotkey {
+        let _ = app.global_shortcut().unregister_all();
+        if let Ok(new_sc) = settings.hotkey.parse::<Shortcut>() {
+            let _ = app.global_shortcut().register(new_sc);
+        } else if let Ok(default_sc) = "Control+Space".parse::<Shortcut>() {
+            let _ = app.global_shortcut().register(default_sc);
+        }
+    }
+
     *s = settings;
     Ok(())
 }
@@ -140,9 +154,15 @@ pub fn reprocess_history_item(
         confidence: Some(0.95),
     };
 
+    let (dictionary, snippets) = {
+        let s = state.settings.lock().unwrap();
+        (s.dictionary.clone(), s.snippets.clone())
+    };
+
     let options = CleanupOptions {
         mode,
-        dictionary: state.settings.lock().unwrap().dictionary.clone(),
+        dictionary,
+        snippets,
     };
 
     let cleaned = RuleBasedCleaner::clean(&dummy_transcript, &options).map_err(|e| e.to_string())?;

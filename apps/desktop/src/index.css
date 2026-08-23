@@ -3,6 +3,50 @@
 @tailwind utilities;
 
 :root {
+  color-scheme: light;
+  --bg: #F3F5F9;
+  --panel: #FFFFFF;
+  --raised: #EEF0F5;
+  --raised-hover: #E4E7EE;
+  --border: #DCE0E8;
+  --border-soft: #E8EBF2;
+  --text-1: #0B0E14;
+  --text-2: #4A5568;
+  --text-3: #718096;
+  --blade: #FF4D5E;
+  --blade-soft: rgba(255, 77, 94, 0.08);
+  --blade-hover: #E8404F;
+  --blade-glow: rgba(255, 77, 94, 0.18);
+  --teal: #3FE3C4;
+  --teal-soft: rgba(63, 227, 196, 0.08);
+  --teal-hover: #2DC9AD;
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-head: 'Space Grotesk', var(--font);
+  --font-mono: 'JetBrains Mono', 'Cascadia Code', monospace;
+  --r-xs: 6px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 24px;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #F3F5F9;
+  --panel: #FFFFFF;
+  --raised: #EEF0F5;
+  --raised-hover: #E4E7EE;
+  --border: #DCE0E8;
+  --border-soft: #E8EBF2;
+  --text-1: #0B0E14;
+  --text-2: #4A5568;
+  --text-3: #718096;
+  --blade-soft: rgba(255, 77, 94, 0.08);
+  --blade-glow: rgba(255, 77, 94, 0.18);
+  --teal-soft: rgba(63, 227, 196, 0.08);
+}
+
+[data-theme="dark"] {
   color-scheme: dark;
   --bg: #0C0E14;
   --panel: #151820;
@@ -13,21 +57,29 @@
   --text-1: #E8ECF2;
   --text-2: #9BA3B5;
   --text-3: #5C6478;
-  --blade: #FF4D5E;
   --blade-soft: rgba(255, 77, 94, 0.12);
-  --blade-hover: #E8404F;
   --blade-glow: rgba(255, 77, 94, 0.25);
-  --teal: #3FE3C4;
   --teal-soft: rgba(63, 227, 196, 0.10);
-  --teal-hover: #2DC9AD;
-  --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-head: 'Space Grotesk', var(--font);
-  --font-mono: 'JetBrains Mono', 'Cascadia Code', monospace;
-  --r-xs: 6px;
-  --r-sm: 8px;
-  --r-md: 12px;
-  --r-lg: 16px;
-  --r-xl: 24px;
+}
+
+/* System Default Theme Support */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]),
+  [data-theme="system"] {
+    color-scheme: dark;
+    --bg: #0C0E14;
+    --panel: #151820;
+    --raised: #1C2028;
+    --raised-hover: #252A34;
+    --border: #2A2E38;
+    --border-soft: #222630;
+    --text-1: #E8ECF2;
+    --text-2: #9BA3B5;
+    --text-3: #5C6478;
+    --blade-soft: rgba(255, 77, 94, 0.12);
+    --blade-glow: rgba(255, 77, 94, 0.25);
+    --teal-soft: rgba(63, 227, 196, 0.10);
+  }
 }
 
 body {
@@ -40,12 +92,18 @@ body {
   -webkit-user-select: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
-/* Custom ForgeClip Scrollbars */
+/* Ultra-Modern Desktop App Custom Scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 7px;
+  height: 7px;
 }
 
 ::-webkit-scrollbar-track {
@@ -53,17 +111,22 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2A2E38;
-  border-radius: 3px;
+  background: var(--border);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background-color 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #FF4D5E;
+  background: var(--blade);
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 /* Glassmorphism & Surface Tokens */
 .forge-glass {
-  background: rgba(21, 24, 32, 0.92);
+  background: var(--panel);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid var(--border);
@@ -73,13 +136,21 @@ body {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
+[data-theme="dark"] .forge-card {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
 .forge-card:hover {
-  border-color: rgba(255, 77, 94, 0.35);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  border-color: rgba(255, 77, 94, 0.4);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] .forge-card:hover {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
 }
 
 /* Buttons */
@@ -131,7 +202,7 @@ body {
   top: 24px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(21, 24, 32, 0.95);
+  background: var(--panel);
   color: var(--text-1);
   border: 1px solid var(--border);
   padding: 10px 22px;
@@ -140,7 +211,7 @@ body {
   font-size: 13px;
   font-weight: 600;
   z-index: 999999;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   pointer-events: none;

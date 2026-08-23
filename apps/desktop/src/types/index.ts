@@ -24,6 +24,8 @@ export interface AppSettings {
   is_toggle_mode: boolean;
   retention_policy: RetentionPolicy;
   dictionary: Record<string, string>;
+  snippets: Record<string, string>;
+  theme: "dark" | "light" | "system";
 }
 
 export interface AudioDeviceInfo {

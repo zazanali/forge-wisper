@@ -74,13 +74,18 @@ impl VerificationEngine {
             preserved.push(format!("Number: {}", digit));
         }
 
-        // 3. Length sanity check (if final text is collapsed to almost nothing, or exploded > 3x)
+        // 3. Length sanity check (distinguishing extreme hallucinations from moderate snippet expansions)
         if final_clean.len() < raw_clean.len() / 4 && raw_clean.len() > 20 {
             issues.push("Final text is disproportionately shorter than raw speech".to_string());
             score -= 0.4;
-        } else if final_clean.len() > raw_clean.len() * 3 && final_clean.len() > 20 {
+        } else if final_clean.len() > raw_clean.len() * 8 && final_clean.len() > 50 {
+            // Severe hallucination (e.g. 2 words expanding into 100+ characters)
             issues.push("Final text is disproportionately longer than raw speech (potential hallucination)".to_string());
             score -= 0.6;
+        } else if final_clean.len() > raw_clean.len() * 3 && final_clean.len() > 25 {
+            // Moderate expansion (e.g. macro / snippet expansion)
+            issues.push("Final text is expanded compared to raw speech (macro expansion or review required)".to_string());
+            score -= 0.35;
         }
 
         // Determine Pass / Review / Fail

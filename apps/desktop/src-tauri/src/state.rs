@@ -3,7 +3,6 @@ use forge_cleanup::{CleanupOptions, FormattingMode, RuleBasedCleaner};
 use forge_output::{OutputEngine, PasteOutcome};
 use forge_provider_groq::GroqTranscriptionProvider;
 use forge_provider_local_whisper::{LocalWhisperProvider, ModelManager};
-use forge_provider_mock::MockTranscriptionProvider;
 use forge_security::SecretStore;
 use forge_storage::{HistoryRecord, RetentionPolicy, StorageEngine};
 use forge_transcription::{AudioData, ProviderError, TranscriptionOptions, TranscriptionProvider};
@@ -33,7 +32,7 @@ pub enum ProcessingState {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppSettings {
-    pub provider: String,            // "mock", "groq", "local-whisper"
+    pub provider: String,            // "groq", "local-whisper"
     pub model: String,               // e.g. "whisper-large-v3-turbo" or "base"
     pub microphone: Option<String>,
     pub formatting_mode: FormattingMode,
@@ -41,19 +40,70 @@ pub struct AppSettings {
     pub is_toggle_mode: bool,        // true = single tap toggle, false = push-to-talk
     pub retention_policy: RetentionPolicy,
     pub dictionary: HashMap<String, String>,
+    #[serde(default)]
+    pub snippets: HashMap<String, String>,
+    #[serde(default = "default_theme")]
+    pub theme: String,               // "dark", "light", "system"
+}
+
+fn default_theme() -> String {
+    "light".to_string()
 }
 
 impl Default for AppSettings {
     fn default() -> Self {
+        let defaults = CleanupOptions::default();
         Self {
-            provider: "mock".to_string(),
-            model: "mock-instant".to_string(),
+            provider: "groq".to_string(),
+            model: "whisper-large-v3-turbo".to_string(),
             microphone: None,
             formatting_mode: FormattingMode::Smart,
             hotkey: "Control+Space".to_string(),
-            is_toggle_mode: false,
+            is_toggle_mode: true,
             retention_policy: RetentionPolicy::Days30,
-            dictionary: CleanupOptions::default().dictionary,
+            dictionary: defaults.dictionary,
+            snippets: defaults.snippets,
+            theme: "light".to_string(),
+        }
+    }
+}
+
+impl AppSettings {
+    pub fn config_path() -> Option<std::path::PathBuf> {
+        directories::ProjectDirs::from("com", "forge", "ForgeWisper").map(|proj| {
+            let config_dir = proj.config_dir();
+            let _ = std::fs::create_dir_all(config_dir);
+            config_dir.join("settings.json")
+        })
+    }
+
+    pub fn load() -> Self {
+        if let Some(path) = Self::config_path() {
+            if path.exists() {
+                if let Ok(content) = std::fs::read_to_string(&path) {
+                    if let Ok(mut settings) = serde_json::from_str::<AppSettings>(&content) {
+                        if SecretStore::get_secret("groq_api_key").is_ok() && settings.provider == "mock" {
+                            settings.provider = "groq".to_string();
+                            settings.model = "whisper-large-v3-turbo".to_string();
+                        }
+                        return settings;
+                    }
+                }
+            }
+        }
+        let mut default = Self::default();
+        if SecretStore::get_secret("groq_api_key").is_ok() {
+            default.provider = "groq".to_string();
+            default.model = "whisper-large-v3-turbo".to_string();
+        }
+        default
+    }
+
+    pub fn save(&self) {
+        if let Some(path) = Self::config_path() {
+            if let Ok(json) = serde_json::to_string_pretty(self) {
+                let _ = std::fs::write(path, json);
+            }
         }
     }
 }
@@ -66,7 +116,6 @@ pub struct PipelineState {
     pub is_active_recording: AtomicBool,
     pub storage: StorageEngine,
     pub model_manager: Arc<ModelManager>,
-    pub mock_provider: Arc<MockTranscriptionProvider>,
     pub groq_provider: Arc<GroqTranscriptionProvider>,
     pub local_provider: Arc<LocalWhisperProvider>,
 }
@@ -81,21 +130,16 @@ impl PipelineState {
                 .map_err(|e| ProviderError::AuthenticationError(e.to_string()))
         }));
 
-        let mut default_settings = AppSettings::default();
-        if SecretStore::get_secret("groq_api_key").is_ok() {
-            default_settings.provider = "groq".to_string();
-            default_settings.model = "whisper-large-v3-turbo".to_string();
-        }
+        let loaded_settings = AppSettings::load();
 
         Self {
             current_state: Mutex::new(ProcessingState::Idle),
             current_error: Mutex::new(None),
-            settings: Mutex::new(default_settings),
+            settings: Mutex::new(loaded_settings),
             active_recorder: Mutex::new(None),
             is_active_recording: AtomicBool::new(false),
             storage,
             model_manager,
-            mock_provider: Arc::new(MockTranscriptionProvider::new()),
             groq_provider,
             local_provider: Arc::new(LocalWhisperProvider::new()),
         }
@@ -204,9 +248,9 @@ impl PipelineState {
             }
         };
 
-        let (provider_name, model_name, fmt_mode, dict, retention) = {
+        let (provider_name, model_name, fmt_mode, dict, snippets, retention) = {
             let s = self.settings.lock().unwrap();
-            (s.provider.clone(), s.model.clone(), s.formatting_mode, s.dictionary.clone(), s.retention_policy)
+            (s.provider.clone(), s.model.clone(), s.formatting_mode, s.dictionary.clone(), s.snippets.clone(), s.retention_policy)
         };
 
         let audio_data = AudioData::new(wav_bytes, 16000, 1, start_time.elapsed().as_millis() as u64);
@@ -214,14 +258,6 @@ impl PipelineState {
         // 2. Transcribe
         self.set_state(&app, ProcessingState::Transcribing, None);
         let transcript_result = match provider_name.as_str() {
-            "groq" => {
-                self.groq_provider
-                    .transcribe(audio_data, TranscriptionOptions {
-                        model: Some(model_name.clone()),
-                        ..Default::default()
-                    })
-                    .await
-            }
             "local-whisper" => {
                 self.local_provider
                     .transcribe(audio_data, TranscriptionOptions {
@@ -231,8 +267,12 @@ impl PipelineState {
                     .await
             }
             _ => {
-                self.mock_provider
-                    .transcribe(audio_data, TranscriptionOptions::default())
+                // Default to Groq Cloud Whisper
+                self.groq_provider
+                    .transcribe(audio_data, TranscriptionOptions {
+                        model: Some(model_name.clone()),
+                        ..Default::default()
+                    })
                     .await
             }
         };
@@ -251,6 +291,7 @@ impl PipelineState {
         let cleanup_opts = CleanupOptions {
             mode: fmt_mode,
             dictionary: dict,
+            snippets,
         };
 
         let cleaned = match RuleBasedCleaner::clean(&raw_transcript, &cleanup_opts) {
@@ -264,11 +305,15 @@ impl PipelineState {
 
         if cleaned.cleaned_text.trim().is_empty() {
             println!("[Forge Pipeline] Cleaned text is empty (no audible speech transcribed).");
-            self.set_state(
-                &app,
-                ProcessingState::Error,
-                Some("No speech detected. In Settings, switch to 'Microphone Array' and check mic volume.".to_string()),
-            );
+            if start_time.elapsed().as_millis() < 400 {
+                self.set_state(&app, ProcessingState::Idle, None);
+            } else {
+                self.set_state(
+                    &app,
+                    ProcessingState::Error,
+                    Some("No speech detected. Speak clearly into your mic.".to_string()),
+                );
+            }
             return Ok(String::new());
         }
 

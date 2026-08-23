@@ -2,6 +2,7 @@
   "name": "@forge-wisper/desktop",
   "private": true,
   "version": "0.1.0",
+  "author": "Ali Zazan",
   "type": "module",
   "scripts": {
     "dev": "vite",

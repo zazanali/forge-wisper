@@ -1,17 +1,47 @@
-# Security Policy
+# Security & Privacy Policy 🛡️
 
-## Supported Versions
+At **Forge Wisper**, security and user privacy are fundamental architectural principles. This document outlines our security guarantees, data handling practices, and the process for reporting vulnerabilities.
+
+---
+
+## 🔒 Supported Versions
+
+We actively provide security patches and updates for the following versions:
 
 | Version | Supported          |
-| ------- | ------------------ |
-| 0.1.x   | :white_check_mark: |
+| :--- | :--- |
+| **0.1.x** | :white_check_mark: Supported |
 
-## Privacy & Key Storage Guarantee
+---
 
-- **API Keys**: Groq API keys and any future provider tokens are stored strictly in the operating system's secure credential vault (Windows Credential Manager via `keyring`). Keys are never written to disk, logs, or telemetry.
-- **Audio Persistence**: Audio data captured from the microphone is kept strictly in memory for processing and is immediately dropped after transcription. Audio is **never** saved to disk unless explicitly configured for diagnostic testing.
-- **Transcripts**: Dictation history is stored locally in an embedded SQLite database. No transcripts are transmitted to external servers without explicit user consent.
+## 🛡️ Privacy & Security Guarantees
 
-## Reporting a Vulnerability
+### 1. In-Memory Audio Processing
+- **No Audio Persistence**: Audio recorded via your microphone is captured into transient memory buffers solely for transcription processing.
+- **Immediate Discard**: Audio buffers are dropped and deallocated from RAM immediately after transcription is complete. Audio is **never written to disk or telemetry**.
 
-If you discover a security vulnerability within Forge Wisper, please report it responsibly by contacting the maintainers directly or opening a private security advisory on GitHub.
+### 2. Native OS Secret Vaults (Keyring)
+- **Zero Plaintext API Keys**: Provider API keys (such as Groq API keys) are stored directly inside your operating system's native secure credential manager:
+  - **Windows**: Windows Credential Manager
+  - **macOS**: Apple Keychain
+  - **Linux**: Secret Service API / GNOME Keyring / KWallet
+- Keys are never serialized into plaintext configuration files, SQLite tables, or error logs.
+
+### 3. Local-First Processing
+- **Offline Guarantee**: When using **Local Whisper**, 100% of speech recognition, text cleaning, formatting, and auto-pasting occurs locally on your CPU/GPU. No data leaves your machine.
+- **Local SQLite History**: All dictation history is stored in a local SQLite database (`history.db`) on your device.
+
+---
+
+## 🚨 Reporting a Vulnerability
+
+If you discover a security vulnerability or security bug within Forge Wisper, please report it responsibly:
+
+1. **Do NOT open a public GitHub issue** for sensitive vulnerabilities.
+2. Open a **Private Security Advisory** on GitHub via the **Security** tab of the repository.
+3. Include:
+   - A description of the vulnerability and its potential impact.
+   - Step-by-step reproduction instructions or proof-of-concept.
+   - Any suggested mitigations.
+
+We will acknowledge receipt of your vulnerability report within 48 hours and work with you on a coordinated disclosure and patch release.

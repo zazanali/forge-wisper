@@ -23,6 +23,8 @@ impl Default for FormattingMode {
 pub struct CleanupOptions {
     pub mode: FormattingMode,
     pub dictionary: HashMap<String, String>,
+    #[serde(default)]
+    pub snippets: HashMap<String, String>,
 }
 
 impl Default for CleanupOptions {
@@ -42,9 +44,14 @@ impl Default for CleanupOptions {
         dictionary.insert("kubernetes".to_string(), "Kubernetes".to_string());
         dictionary.insert("github".to_string(), "GitHub".to_string());
 
+        let mut snippets = HashMap::new();
+        snippets.insert("my signature".to_string(), "Best regards,\n[Your Name]\nLead Developer".to_string());
+        snippets.insert("email signoff".to_string(), "Thanks and best regards,\n[Your Name]".to_string());
+
         Self {
             mode: FormattingMode::Smart,
             dictionary,
+            snippets,
         }
     }
 }
@@ -82,13 +89,20 @@ lazy_static! {
         (Regex::new(r"(?i)\bcolon\b").unwrap(), ":"),
         (Regex::new(r"(?i)\bsemicolon\b").unwrap(), ";"),
         (Regex::new(r"(?i)\b(hyphen|dash)\b").unwrap(), "-"),
+        (Regex::new(r"(?i)\bunderscore\b").unwrap(), "_"),
         (Regex::new(r"(?i)\b(forward slash|slash)\b").unwrap(), "/"),
-        (Regex::new(r"(?i)\b(at sign|at symbol)\b").unwrap(), "@"),
+        (Regex::new(r"(?i)\b(at the rate of|at the rate|at sign|at symbol)\b").unwrap(), "@"),
+        (Regex::new(r"(?i)\bdot\s+(com|org|net|io|ai|co|dev|app|edu|gov|me|info|xyz|tech|pk|in|uk|us|ca|de|fr)\b").unwrap(), ".$1"),
+        (Regex::new(r"(?i)\b(dot|point)\b").unwrap(), "."),
         (Regex::new(r"(?i)\b(hashtag|hash sign)\b").unwrap(), "#"),
         (Regex::new(r"(?i)\b(open parenthesis|open paren)\b").unwrap(), "("),
         (Regex::new(r"(?i)\b(close parenthesis|close paren)\b").unwrap(), ")"),
         (Regex::new(r"(?i)\b(open quote|quote)\b").unwrap(), "\""),
         (Regex::new(r"(?i)\b(close quote|end quote|unquote)\b").unwrap(), "\""),
+    ];
+
+    static ref KNOWN_TLDS: [&'static str; 20] = [
+        "com", "org", "net", "io", "ai", "co", "dev", "app", "edu", "gov", "me", "info", "xyz", "tech", "pk", "in", "uk", "us", "ca", "de"
     ];
 }
 
@@ -117,30 +131,36 @@ impl RuleBasedCleaner {
 
         let mut text = raw.to_string();
 
-        // 1. Spoken corrections ("Tuesday, actually Thursday" -> "Thursday")
+        // 1. Voice snippet & macro expansion ("my signature" -> full text macro)
+        text = Self::expand_snippets(&text, &options.snippets);
+
+        // 2. Spoken corrections ("Tuesday, actually Thursday" -> "Thursday")
         text = Self::apply_corrections(&text);
 
-        // 2. Spoken punctuation & verbal commands replacement ("new paragraph", "comma", "bullet point")
+        // 3. Spoken punctuation & verbal commands replacement ("new paragraph", "comma", "bullet point")
         text = Self::apply_spoken_punctuation(&text);
 
-        // 3. Filler word removal ("um", "uh")
+        // 4. Filler word removal ("um", "uh")
         text = Self::remove_fillers(&text);
 
-        // 4. Number & currency normalization ("fifteen thousand five hundred" -> "15,500")
+        // 5. Number & currency normalization ("fifteen thousand five hundred" -> "15,500")
         text = Self::normalize_numbers(&text);
 
-        // 5. Personal dictionary replacement
+        // 6. Personal dictionary replacement
         text = Self::apply_dictionary(&text, &options.dictionary);
 
-        // 6. Formatting & spacing
+        // 7. Email & URL / Web address smart normalization ("ali.khan@gmail.com", "google.com")
+        text = Self::normalize_emails_and_urls(&text);
+
+        // 8. Formatting & spacing (protecting emails, URLs, and decimal numbers)
         text = Self::fix_punctuation_and_spacing(&text);
 
-        // 7. Structure detection (for Structured / Smart modes)
+        // 9. Structure detection (for Structured / Smart modes)
         if matches!(options.mode, FormattingMode::Structured | FormattingMode::Smart) {
             text = Self::apply_structure(&text);
         }
 
-        // 8. Capitalize sentences
+        // 10. Capitalize sentences (preserving email & URL lower-casing)
         text = Self::capitalize_sentences(&text);
 
         let cleaned = text.trim().to_string();
@@ -175,8 +195,9 @@ impl RuleBasedCleaner {
             }
         }).to_string();
 
-        // Single word corrections: "five, make that ten" / "Tuesday, actually Thursday" / "three, I mean four"
-        let re_correction = Regex::new(r"(?i)\b([a-zA-Z0-9]+)\s*,?\s*(?:actually|I mean|I meant|make that|or rather|sorry|wait no|no wait)\s+([a-zA-Z0-9]+)\b").unwrap();
+        // Single word corrections with explicit correction cue or comma separator:
+        // "five, make that ten" / "Tuesday, actually Thursday" / "three, I mean four" / "Tuesday, wait no Thursday"
+        let re_correction = Regex::new(r"(?i)\b([a-zA-Z0-9]+)\s*(?:,\s*actually|,\s*sorry|,\s*I mean|,\s*I meant|,?\s*make that|,?\s*or rather|,?\s*wait no|,?\s*no wait|,?\s*no actually|,?\s*wait actually)\s+([a-zA-Z0-9]+)\b").unwrap();
         text = re_correction.replace_all(&text, "$2").to_string();
 
         text
@@ -189,6 +210,117 @@ impl RuleBasedCleaner {
             text = pattern.replace_all(&text, *replacement).to_string();
         }
         Self::fix_punctuation_and_spacing(&text)
+    }
+
+    /// Normalizes spoken emails and web addresses into clean standard format (e.g. "ali.khan@gmail.com", "google.com")
+    pub fn normalize_emails_and_urls(input: &str) -> String {
+        let mut text = input.to_string();
+
+        let tld_pattern = r"(?:com|org|net|io|ai|co|dev|app|edu|gov|me|info|xyz|tech|pk|in|uk|us|ca|de|fr|online|site|cloud|live|pro|is)";
+
+        // 1. Spoken email pattern with explicit multi-part connectors or explicit username separators (dot, _, -)
+        // e.g. "ali. Khan at the gmail. Com", "Ali.Fund and direct of gmail.com", "ali dot khan at the rate gmail dot com"
+        let re_spoken_email_explicit = Regex::new(&format!(
+            r"(?i)\b([a-zA-Z0-9]+(?:\s*(?:[\._\-]|\bdot\b)\s*[a-zA-Z0-9]+)+)\s*(?:@|\band\s+direct\s+of\b|\bat\s+direct\s+of\b|\band\s+the\s+rate\s+of\b|\bat\s+the\s+rate\s+of\b|\bat\s+the\s+rate\b|\bat\s+rate\s+of\b|\band\s+the\s+rate\b|\band\s+direct\b|\bat\s+direct\b|\bat\s+the\b|\band\s+the\b|\bat\b)\s*([a-zA-Z0-9_\-]+)\s*(?:\.|\bdot\b)\s*({})\b",
+            tld_pattern
+        )).unwrap();
+
+        let re_dot_token = Regex::new(r"(?i)\s*\bdot\b\s*").unwrap();
+
+        text = re_spoken_email_explicit.replace_all(&text, |caps: &regex::Captures| {
+            let raw_user = &caps[1];
+            let domain = &caps[2];
+            let tld = &caps[3];
+
+            let user_step1 = re_dot_token.replace_all(raw_user, ".").to_string();
+            let clean_user = user_step1.replace(" ", "").to_lowercase();
+            let clean_domain = domain.replace(" ", "").to_lowercase();
+            let clean_tld = tld.trim().to_lowercase();
+
+            format!("{}@{}.{}", clean_user, clean_domain, clean_tld)
+        }).to_string();
+
+        // 2. Spoken email with verbal "@" connector ("at the rate", "at the rate of", "and direct of", "@") and 1-2 word username
+        // e.g. "ali khan at the rate of gmail dot com", "contact me at ali at the rate gmail dot com"
+        let re_spoken_rate_email = Regex::new(&format!(
+            r"(?i)\b([a-zA-Z0-9]+(?:\s+[a-zA-Z0-9]+)?)\s*(?:@|\band\s+direct\s+of\b|\bat\s+direct\s+of\b|\band\s+the\s+rate\s+of\b|\bat\s+the\s+rate\s+of\b|\bat\s+the\s+rate\b|\bat\s+rate\s+of\b|\band\s+the\s+rate\b|\band\s+direct\b|\bat\s+direct\b|\bat\s+the\b|\band\s+the\b)\s*([a-zA-Z0-9_\-]+)\s*(?:\.|\bdot\b)\s*({})\b",
+            tld_pattern
+        )).unwrap();
+
+        text = re_spoken_rate_email.replace_all(&text, |caps: &regex::Captures| {
+            let raw_user = &caps[1];
+            let domain = &caps[2];
+            let tld = &caps[3];
+
+            let clean_user = if raw_user.contains(' ') {
+                raw_user.split_whitespace().collect::<Vec<_>>().join(".").to_lowercase()
+            } else {
+                raw_user.trim().to_lowercase()
+            };
+            let clean_domain = domain.replace(" ", "").to_lowercase();
+            let clean_tld = tld.trim().to_lowercase();
+
+            format!("{}@{}.{}", clean_user, clean_domain, clean_tld)
+        }).to_string();
+
+        // 3. Spoken email with simple "at" connector and 1-2 word username
+        // e.g. "send email to ali khan at gmail dot com", "ali at gmail.com"
+        let re_spoken_simple_at = Regex::new(&format!(
+            r"(?i)\b([a-zA-Z0-9]+(?:\s+[a-zA-Z0-9]+)?)\s+at\s+([a-zA-Z0-9_\-]+)\s*(?:\.|\bdot\b)\s*({})\b",
+            tld_pattern
+        )).unwrap();
+
+        text = re_spoken_simple_at.replace_all(&text, |caps: &regex::Captures| {
+            let raw_user = &caps[1];
+            let domain = &caps[2];
+            let tld = &caps[3];
+
+            let clean_user = if raw_user.contains(' ') {
+                raw_user.split_whitespace().collect::<Vec<_>>().join(".").to_lowercase()
+            } else {
+                raw_user.trim().to_lowercase()
+            };
+            let clean_domain = domain.replace(" ", "").to_lowercase();
+            let clean_tld = tld.trim().to_lowercase();
+
+            format!("{}@{}.{}", clean_user, clean_domain, clean_tld)
+        }).to_string();
+
+        // 4. Email with spaces around @ or dots: "ali . khan @ gmail . com" -> "ali.khan@gmail.com"
+        let re_spaced_email = Regex::new(
+            r"(?i)\b([a-zA-Z0-9._%+-]+)\s*@\s*([a-zA-Z0-9.-]+)\s*\.\s*([a-zA-Z]{2,6})\b"
+        ).unwrap();
+        text = re_spaced_email.replace_all(&text, |caps: &regex::Captures| {
+            let user = caps[1].replace(" ", "").to_lowercase();
+            let domain = caps[2].replace(" ", "").to_lowercase();
+            let tld = caps[3].replace(" ", "").to_lowercase();
+            format!("{}@{}.{}", user, domain, tld)
+        }).to_string();
+
+        // 3. Web URLs & Domains: "www . google . com" -> "www.google.com", "github . com" -> "github.com"
+        let re_www = Regex::new(
+            r"(?i)\bwww\s*(?:\.|\bdot\b)\s*([a-zA-Z0-9_\-]+)\s*(?:\.|\bdot\b)\s*([a-zA-Z]{2,6})\b"
+        ).unwrap();
+        text = re_www.replace_all(&text, |caps: &regex::Captures| {
+            let domain = caps[1].replace(" ", "").to_lowercase();
+            let tld = caps[2].to_lowercase();
+            format!("www.{}.{}", domain, tld)
+        }).to_string();
+
+        let re_web_domains = Regex::new(
+            r"(?i)\b([a-zA-Z0-9_\-]+)\s*(?:\.|\bdot\b)\s*(com|org|net|io|ai|co|dev|app|edu|gov|me|info|xyz|tech|pk|in|uk|us|ca|de|fr)\b"
+        ).unwrap();
+        text = re_web_domains.replace_all(&text, |caps: &regex::Captures| {
+            let domain = caps[1].replace(" ", "").to_lowercase();
+            let tld = caps[2].to_lowercase();
+            format!("{}.{}", domain, tld)
+        }).to_string();
+
+        // 4. URL scheme spacing: "https : / / github.com" -> "https://github.com"
+        let re_url_scheme = Regex::new(r"(?i)\b(https?)\s*:\s*/\s*/\s*").unwrap();
+        text = re_url_scheme.replace_all(&text, "$1://").to_string();
+
+        text
     }
 
     /// Removes vocal filler sounds
@@ -234,35 +366,104 @@ impl RuleBasedCleaner {
         text
     }
 
-    /// Fixes spacing around punctuation marks
+    /// Expands voice snippet shortcuts and repetitive prompt macros (e.g. "my signature" -> custom multiline block)
+    pub fn expand_snippets(input: &str, snippets: &HashMap<String, String>) -> String {
+        let mut text = input.to_string();
+        for (trigger, expansion) in snippets {
+            let trigger_trimmed = trigger.trim();
+            if trigger_trimmed.is_empty() {
+                continue;
+            }
+            if let Ok(re) = Regex::new(&format!(r"(?i)\b{}\b", regex::escape(trigger_trimmed))) {
+                text = re.replace_all(&text, expansion.as_str()).to_string();
+            }
+        }
+        text
+    }
+
+    /// Fixes spacing around punctuation marks while strictly preserving emails, URLs, and numbers
     pub fn fix_punctuation_and_spacing(input: &str) -> String {
         let text = RE_MULTI_SPACE.replace_all(input, " ").to_string();
         let text = RE_PUNCT_SPACE.replace_all(&text, "$1").to_string();
-        
-        // Ensure space after punctuation if followed by a letter/digit
-        let re_space_after = Regex::new(r"([,.:;?!])([a-zA-Z0-9])").unwrap();
-        re_space_after.replace_all(&text, "$1 $2").to_string()
+
+        // 1. Commas, semicolons, question marks, exclamation marks followed by letter/digit -> ensure space
+        let re_space_after_punct = Regex::new(r"([,;?!])([a-zA-Z0-9])").unwrap();
+        let text = re_space_after_punct.replace_all(&text, "$1 $2").to_string();
+
+        // 2. Colons followed by letter/digit: add space UNLESS part of http://, https://, or time (10:30)
+        let re_colon = Regex::new(r"([a-zA-Z]+):([a-zA-Z]+)").unwrap();
+        let text = re_colon.replace_all(&text, |caps: &regex::Captures| {
+            let prefix = &caps[1];
+            let suffix = &caps[2];
+            if prefix.eq_ignore_ascii_case("http") || prefix.eq_ignore_ascii_case("https") {
+                format!("{}:{}", prefix, suffix)
+            } else {
+                format!("{}: {}", prefix, suffix)
+            }
+        }).to_string();
+
+        // 3. Period spacing: add space if followed by a letter UNLESS it's inside an email/domain/filename/decimal
+        let re_period_sentence = Regex::new(r"\.([A-Z][a-zA-Z]*)").unwrap();
+        let text = re_period_sentence.replace_all(&text, ". $1").to_string();
+
+        text
     }
 
-    /// Capitalizes the first letter of each sentence and list items
+    /// Capitalizes the first letter of each sentence while preserving email addresses, URLs, and code identifiers
     pub fn capitalize_sentences(input: &str) -> String {
         if input.is_empty() {
             return String::new();
         }
 
+        // Split by whitespace/tokens to protect email addresses and URLs
         let mut result = String::with_capacity(input.len());
         let mut capitalize_next = true;
 
-        for ch in input.chars() {
-            if capitalize_next && ch.is_alphabetic() {
-                result.extend(ch.to_uppercase());
-                capitalize_next = false;
-            } else {
-                result.push(ch);
-                if ch == '.' || ch == '?' || ch == '!' || ch == '\n' {
+        for line in input.split('\n') {
+            let mut line_res = String::with_capacity(line.len());
+            let words: Vec<&str> = line.split_whitespace().collect();
+
+            for (idx, word) in words.iter().enumerate() {
+                if idx > 0 {
+                    line_res.push(' ');
+                }
+
+                // If token is an email address (contains @) or URL/domain, do NOT capitalize internally
+                if word.contains('@') || word.starts_with("http://") || word.starts_with("https://") || word.starts_with("www.") {
+                    line_res.push_str(word);
+                    if word.ends_with('.') || word.ends_with('!') || word.ends_with('?') {
+                        capitalize_next = true;
+                    } else {
+                        capitalize_next = false;
+                    }
+                    continue;
+                }
+
+                let mut word_res = String::with_capacity(word.len());
+                for ch in word.chars() {
+                    if capitalize_next && ch.is_alphabetic() {
+                        word_res.extend(ch.to_uppercase());
+                        capitalize_next = false;
+                    } else {
+                        word_res.push(ch);
+                    }
+                }
+
+                // If word ends with sentence terminator (. ! ?), next word should be capitalized
+                // BUT ignore abbreviations or decimals
+                if word.ends_with('.') || word.ends_with('!') || word.ends_with('?') {
+                    // Check if it's not a common domain like "google.com."
                     capitalize_next = true;
                 }
+
+                line_res.push_str(&word_res);
             }
+
+            if !result.is_empty() {
+                result.push('\n');
+            }
+            result.push_str(&line_res);
+            capitalize_next = true; // New lines start with capitalized sentence
         }
 
         result
@@ -410,14 +611,15 @@ mod tests {
         let transcript = Transcript {
             text: input.to_string(),
             language: "en".to_string(),
-            provider: "mock".to_string(),
-            model: "mock-v1".to_string(),
+            provider: "groq".to_string(),
+            model: "whisper-large-v3-turbo".to_string(),
             duration_ms: 2000,
             confidence: Some(1.0),
         };
         let options = CleanupOptions {
             mode: FormattingMode::Structured,
             dictionary: HashMap::new(),
+            snippets: HashMap::new(),
         };
         let cleaned = RuleBasedCleaner::clean(&transcript, &options).unwrap();
         assert!(cleaned.cleaned_text.contains("### Project Plan"));
@@ -434,5 +636,87 @@ mod tests {
         let input2 = "We need five, make that ten licenses.";
         let res2 = RuleBasedCleaner::apply_corrections(input2);
         assert_eq!(res2, "We need ten licenses.");
+
+        // Natural adverb preservation (ensure "I actually think" is NOT treated as a correction)
+        let input3 = "I actually think this is a great solution.";
+        let res3 = RuleBasedCleaner::apply_corrections(input3);
+        assert_eq!(res3, "I actually think this is a great solution.");
+    }
+
+    #[test]
+    fn test_expand_snippets() {
+        let mut snippets = HashMap::new();
+        snippets.insert("my signature".to_string(), "Best regards,\nAli\nLead Developer".to_string());
+
+        let input = "Thank you for the update, my signature";
+        let res = RuleBasedCleaner::expand_snippets(input, &snippets);
+        assert!(res.contains("Best regards,\nAli\nLead Developer"));
+
+        let transcript = Transcript {
+            text: "Please find the report attached, my signature".to_string(),
+            language: "en".to_string(),
+            provider: "groq".to_string(),
+            model: "whisper-large-v3-turbo".to_string(),
+            duration_ms: 1000,
+            confidence: Some(1.0),
+        };
+        let options = CleanupOptions {
+            mode: FormattingMode::Smart,
+            dictionary: HashMap::new(),
+            snippets,
+        };
+        let cleaned = RuleBasedCleaner::clean(&transcript, &options).unwrap();
+        assert!(cleaned.cleaned_text.contains("Best regards,"));
+    }
+
+    #[test]
+    fn test_spoken_email_and_url_normalization() {
+        // 1. Spoken "at the", "dot" variation (exact user scenario)
+        let input1 = "ali. Khan at the gmail. Com";
+        let res1 = RuleBasedCleaner::normalize_emails_and_urls(input1);
+        assert_eq!(res1, "ali.khan@gmail.com");
+
+        // 2. Spoken "dot ... at ... dot com"
+        let input2 = "ali dot khan at gmail dot com";
+        let res2 = RuleBasedCleaner::normalize_emails_and_urls(input2);
+        assert_eq!(res2, "ali.khan@gmail.com");
+
+        // 3. Spoken "at the rate" (South Asian idiom)
+        let input3 = "contact me at ali dot khan at the rate gmail dot com";
+        let res3 = RuleBasedCleaner::normalize_emails_and_urls(input3);
+        assert_eq!(res3, "contact me at ali.khan@gmail.com");
+
+        // 4. Spoken "at the rate of"
+        let input4 = "my email is john dot doe at the rate of company dot io";
+        let res4 = RuleBasedCleaner::normalize_emails_and_urls(input4);
+        assert_eq!(res4, "my email is john.doe@company.io");
+
+        // 5. Spoken "Ali Khan at gmail dot com" (natural spoken name without "dot")
+        let input5 = "send email to ali khan at gmail dot com";
+        let res5 = RuleBasedCleaner::normalize_emails_and_urls(input5);
+        assert_eq!(res5, "send email to ali.khan@gmail.com");
+
+        // 6. Whisper phonetic "Ali.Fund and direct of gmail.com"
+        let input6 = "Don't forget to email the slide to Ali.Fund and direct of gmail.com before 8 pm";
+        let res6 = RuleBasedCleaner::normalize_emails_and_urls(input6);
+        assert_eq!(res6, "Don't forget to email the slide to ali.fund@gmail.com before 8 pm");
+
+        // 7. Full end-to-end clean with punctuation and surrounding sentence
+        let transcript = Transcript {
+            text: "please send the document to ali. Khan at the gmail. Com as soon as possible".to_string(),
+            language: "en".to_string(),
+            provider: "groq".to_string(),
+            model: "whisper-large-v3-turbo".to_string(),
+            duration_ms: 2500,
+            confidence: Some(0.99),
+        };
+        let options = CleanupOptions::default();
+        let cleaned = RuleBasedCleaner::clean(&transcript, &options).unwrap();
+        assert_eq!(cleaned.cleaned_text, "Please send the document to ali.khan@gmail.com as soon as possible");
+
+        // 8. Website / Domain normalization
+        let input8 = "visit www . google . com for search";
+        let res8 = RuleBasedCleaner::normalize_emails_and_urls(input8);
+        assert_eq!(res8, "visit www.google.com for search");
     }
 }

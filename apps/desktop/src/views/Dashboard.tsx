@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { api } from "../lib/tauri";
 import type { AppSettings, HistoryRecord, ProcessingState } from "../types";
+import { ForgeLogo } from "../components/ForgeLogo";
 import {
   Mic,
   Square,
@@ -14,7 +15,7 @@ import {
 } from "lucide-react";
 
 interface DashboardProps {
-  onNavigate: (tab: "dashboard" | "history" | "models" | "settings") => void;
+  onNavigate: (tab: "dashboard" | "history" | "models" | "dictionary" | "settings") => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
@@ -103,63 +104,47 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const isRecording = procState === "Listening";
 
   return (
-    <div className="space-y-6 animate-fadeIn">
-      {/* Mock Engine Notice */}
-      {settings?.provider === "mock" && (
-        <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-amber-200">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
-            <span>
-              <strong>Currently using Mock Engine:</strong> Transcribing with pre-set sample text. Switch to <strong>Groq Whisper</strong> or <strong>Local Whisper</strong> to transcribe your real voice.
-            </span>
-          </div>
-          <button
-            onClick={() => onNavigate("settings")}
-            className="px-3 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded-lg font-semibold transition-colors shrink-0"
-          >
-            Configure Engine →
-          </button>
-        </div>
-      )}
+    <div className="space-y-6 animate-fadeIn font-sans">
 
       {/* Main Ready to Dictate Hero Card */}
       <div
-        className={`forge-card p-6 bg-gradient-to-b from-[#151820] to-[#0C0E14] relative overflow-hidden border rounded-2xl transition-all duration-300 ${
+        className={`forge-card p-6 bg-[var(--panel)] relative overflow-hidden border rounded-2xl transition-all duration-300 ${
           isRecording
             ? "border-[#FF4D5E] shadow-xl shadow-[#FF4D5E]/15"
-            : "border-[#2A2E38]"
+            : "border-[var(--border)]"
         }`}
       >
         <div className="absolute top-0 right-0 w-72 h-72 bg-[#FF4D5E]/8 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
-          <div className="space-y-2.5 text-center md:text-left">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-6 relative z-10">
+          <div className="space-y-2.5 text-center sm:text-left flex-1">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FF4D5E]/12 border border-[#FF4D5E]/25 text-xs font-mono text-[#FF4D5E]">
               <span
                 className={`w-2 h-2 rounded-full ${
                   isRecording ? "bg-[#FF4D5E] animate-ping" : "bg-[#FF4D5E] animate-pulse"
                 }`}
               />
-              HOTKEY: {settings?.hotkey || "Control+Space"}
+              HOTKEY: {(settings?.hotkey || "Control+Space").replace("Control", "Ctrl").replace("+", " + ")}
             </div>
-            <h2 className="text-2xl font-display font-bold text-[#E8ECF2] tracking-tight flex items-center gap-3">
-              {isRecording ? "Recording Speech..." : "Ready to Dictate"}
+            <h2 className="text-2xl font-display font-bold text-[var(--text-1)] tracking-tight flex items-center justify-center sm:justify-start gap-3">
+              <ForgeLogo size={28} glow={false} />
+              <span>{isRecording ? "Recording Speech..." : "Ready to Dictate"}</span>
               {isRecording && (
                 <span className="text-sm font-mono text-[#FF4D5E] font-bold px-2 py-0.5 rounded-lg bg-[#FF4D5E]/15 border border-[#FF4D5E]/30">
                   {formatTime(durationSecs)}
                 </span>
               )}
             </h2>
-            <p className="text-sm text-[#9BA3B5] max-w-md">
+            <p className="text-sm text-[var(--text-2)] max-w-xl">
               {settings?.is_toggle_mode
-                ? `Press ${settings.hotkey} to start dictation, speak, and press again to paste.`
-                : `Hold ${settings?.hotkey || "Ctrl+Space"} in any active window, speak naturally, and release.`}
+                ? `Press ${(settings?.hotkey || "Control+Space").replace("Control", "Ctrl").replace("+", " + ")} to start dictation, speak, and press again to paste.`
+                : `Hold ${(settings?.hotkey || "Control+Space").replace("Control", "Ctrl").replace("+", " + ")} in any active window, speak naturally, and release.`}
             </p>
 
             {/* Live Audio Reactive Visualizer */}
             {isRecording && (
-              <div className="flex items-center gap-1.5 pt-2">
-                <span className="text-xs text-[#9BA3B5]">Input:</span>
+              <div className="flex items-center justify-center sm:justify-start gap-1.5 pt-2">
+                <span className="text-xs text-[var(--text-2)]">Input:</span>
                 {[0.4, 0.8, 1.0, 0.7, 0.9, 0.5, 0.3].map((mult, i) => (
                   <div
                     key={i}
@@ -172,7 +157,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                     }}
                   />
                 ))}
-                <span className="text-[11px] text-[#3FE3C4] font-mono ml-2">
+                <span className="text-[11px] text-teal-600 dark:text-[#3FE3C4] font-mono ml-2">
                   Live Waveform
                 </span>
               </div>
@@ -181,7 +166,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
           <button
             onClick={toggleRecording}
-            className={`flex items-center gap-3 px-7 py-4 rounded-xl font-semibold transition-all duration-200 shadow-xl ${
+            className={`w-full sm:w-auto flex items-center justify-center gap-3 px-7 py-4 rounded-xl font-semibold transition-all duration-200 shadow-xl shrink-0 ${
               isRecording
                 ? "bg-[#E8404F] hover:bg-[#FF4D5E] text-white animate-pulse shadow-lg shadow-[#FF4D5E]/30"
                 : "btn-blade text-white"
@@ -202,63 +187,57 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         </div>
       </div>
 
-      {/* Engine & Configuration Quick Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Engine & Configuration Quick Overview (Always in 1 Clean Row) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
         {/* Active Engine */}
-        <div className="forge-card p-4 flex items-start gap-3">
-          <div className="p-2 rounded-xl bg-[#1C2028] text-[#FF4D5E]">
-            {settings?.provider === "groq" ? (
-              <Zap className="w-5 h-5 text-amber-400" />
-            ) : settings?.provider === "local-whisper" ? (
-              <Cpu className="w-5 h-5 text-[#3FE3C4]" />
+        <div className="forge-card p-3.5 flex items-start gap-3 bg-[var(--panel)] border border-[var(--border)] rounded-xl">
+          <div className="p-2 rounded-xl bg-[var(--raised)] text-[#FF4D5E] shrink-0">
+            {settings?.provider === "local-whisper" ? (
+              <Cpu className="w-4 h-4 text-teal-600 dark:text-[#3FE3C4]" />
             ) : (
-              <Sparkles className="w-5 h-5 text-[#FF4D5E]" />
+              <Zap className="w-4 h-4 text-amber-500" />
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-xs text-[#5C6478] uppercase tracking-wider font-mono">Active Engine</div>
-            <div className="text-sm font-semibold text-[#E8ECF2] capitalize truncate mt-0.5">
-              {settings?.provider === "local-whisper"
-                ? "Local Whisper"
-                : settings?.provider === "groq"
-                ? "Groq Whisper"
-                : "Mock Engine"}
+            <div className="text-[10px] text-[var(--text-3)] uppercase tracking-wider font-mono">Active Engine</div>
+            <div className="text-xs font-semibold text-[var(--text-1)] capitalize truncate mt-0.5">
+              {settings?.provider === "local-whisper" ? "Local Whisper" : "Groq Whisper"}
             </div>
-            <div className="text-xs text-[#9BA3B5] truncate mt-0.5 font-mono">
+            <div className="text-[11px] text-[var(--text-2)] truncate mt-0.5 font-mono">
               Model: {settings?.model}
             </div>
           </div>
         </div>
 
         {/* Formatting Mode */}
-        <div className="forge-card p-4 flex items-start gap-3">
-          <div className="p-2 rounded-xl bg-[#1C2028] text-[#3FE3C4]">
-            <Sparkles className="w-5 h-5" />
+        <div className="forge-card p-3.5 flex items-start gap-3 bg-[var(--panel)] border border-[var(--border)] rounded-xl">
+          <div className="p-2 rounded-xl bg-[var(--raised)] text-teal-600 dark:text-[#3FE3C4] shrink-0">
+            <Sparkles className="w-4 h-4" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-xs text-[#5C6478] uppercase tracking-wider font-mono">Formatting Mode</div>
-            <div className="text-sm font-semibold text-[#E8ECF2] capitalize mt-0.5">
+            <div className="text-[10px] text-[var(--text-3)] uppercase tracking-wider font-mono">Formatting Mode</div>
+            <div className="text-xs font-semibold text-[var(--text-1)] capitalize truncate mt-0.5">
               {settings?.formatting_mode} Mode
             </div>
-            <div className="text-xs text-[#9BA3B5] mt-0.5">
+            <div className="text-[11px] text-[var(--text-2)] truncate mt-0.5">
               Rule-based cleanup active
             </div>
           </div>
         </div>
 
         {/* Microphone */}
-        <div className="forge-card p-4 flex items-start gap-3">
-          <div className="p-2 rounded-xl bg-[#1C2028] text-[#FF4D5E]">
-            <Mic className="w-5 h-5" />
+        <div className="forge-card p-3.5 flex items-start gap-3 bg-[var(--panel)] border border-[var(--border)] rounded-xl">
+          <div className="p-2 rounded-xl bg-[var(--raised)] text-[#FF4D5E] shrink-0">
+            <Mic className="w-4 h-4" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-xs text-[#5C6478] uppercase tracking-wider font-mono">Input Device</div>
-            <div className="text-sm font-semibold text-[#E8ECF2] truncate mt-0.5">
+            <div className="text-[10px] text-[var(--text-3)] uppercase tracking-wider font-mono">Input Device</div>
+            <div className="text-xs font-semibold text-[var(--text-1)] truncate mt-0.5">
               {settings?.microphone || "System Default"}
             </div>
             <button
               onClick={() => onNavigate("settings")}
-              className="text-xs text-[#FF4D5E] hover:underline mt-0.5 inline-flex items-center gap-1 font-medium"
+              className="text-[11px] text-[#FF4D5E] hover:underline mt-0.5 inline-flex items-center gap-1 font-medium"
             >
               <SettingsIcon className="w-3 h-3" /> Change in Settings
             </button>
@@ -267,42 +246,42 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       </div>
 
       {/* Wispr Flow Voice Commands Guide Card */}
-      <div className="forge-card p-4 bg-gradient-to-r from-[#151820] to-[#11141A]">
+      <div className="forge-card p-5 bg-[var(--panel)] border border-[var(--border)]">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-[#FF4D5E]" />
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#E8ECF2] font-display">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-1)] font-display">
               Wispr Flow Verbal Commands & Formatting
             </h3>
           </div>
-          <span className="text-[10px] font-mono font-bold text-[#3FE3C4] bg-[#3FE3C4]/10 px-2 py-0.5 rounded-lg border border-[#3FE3C4]/20">
+          <span className="text-[10px] font-mono font-bold text-teal-600 dark:text-[#3FE3C4] bg-teal-500/10 px-2 py-0.5 rounded-lg border border-teal-500/20">
             Active in Smart & Structured Modes
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 text-xs">
-          <div className="p-2.5 rounded-xl bg-[#0C0E14] border border-[#2A2E38] space-y-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+          <div className="p-2.5 rounded-xl bg-[var(--raised)] border border-[var(--border)] space-y-1">
             <div className="font-semibold text-[#FF4D5E]">Paragraphs & Lines</div>
-            <div className="text-[#9BA3B5] font-mono text-[11px]">"new paragraph" → ↵↵</div>
-            <div className="text-[#9BA3B5] font-mono text-[11px]">"new line" → ↵</div>
+            <div className="text-[var(--text-2)] font-mono text-[11px]">&quot;new paragraph&quot; → ↵↵</div>
+            <div className="text-[var(--text-2)] font-mono text-[11px]">&quot;new line&quot; → ↵</div>
           </div>
 
-          <div className="p-2.5 rounded-xl bg-[#0C0E14] border border-[#2A2E38] space-y-1">
-            <div className="font-semibold text-amber-400">Self-Corrections</div>
-            <div className="text-[#9BA3B5] font-mono text-[11px]">"Tuesday, actually Thursday"</div>
-            <div className="text-[#9BA3B5] font-mono text-[11px]">"scratch that..."</div>
+          <div className="p-2.5 rounded-xl bg-[var(--raised)] border border-[var(--border)] space-y-1">
+            <div className="font-semibold text-amber-600 dark:text-amber-400">Self-Corrections</div>
+            <div className="text-[var(--text-2)] font-mono text-[11px]">&quot;Tuesday, actually Thursday&quot;</div>
+            <div className="text-[var(--text-2)] font-mono text-[11px]">&quot;scratch that...&quot;</div>
           </div>
 
-          <div className="p-2.5 rounded-xl bg-[#0C0E14] border border-[#2A2E38] space-y-1">
-            <div className="font-semibold text-[#3FE3C4]">Lists & Bullets</div>
-            <div className="text-[#9BA3B5] font-mono text-[11px]">"bullet point ..." → •</div>
-            <div className="text-[#9BA3B5] font-mono text-[11px]">"checkbox ..." → ☐</div>
+          <div className="p-2.5 rounded-xl bg-[var(--raised)] border border-[var(--border)] space-y-1">
+            <div className="font-semibold text-teal-600 dark:text-[#3FE3C4]">Lists & Bullets</div>
+            <div className="text-[var(--text-2)] font-mono text-[11px]">&quot;bullet point ...&quot; → •</div>
+            <div className="text-[var(--text-2)] font-mono text-[11px]">&quot;checkbox ...&quot; → ☐</div>
           </div>
 
-          <div className="p-2.5 rounded-xl bg-[#0C0E14] border border-[#2A2E38] space-y-1">
-            <div className="font-semibold text-cyan-400">Headings & Steps</div>
-            <div className="text-[#9BA3B5] font-mono text-[11px]">"Title: / Heading:" → ###</div>
-            <div className="text-[#9BA3B5] font-mono text-[11px]">"first ..., then ..., finally"</div>
+          <div className="p-2.5 rounded-xl bg-[var(--raised)] border border-[var(--border)] space-y-1">
+            <div className="font-semibold text-blue-600 dark:text-cyan-400">Headings & Steps</div>
+            <div className="text-[var(--text-2)] font-mono text-[11px]">&quot;Title: / Heading:&quot; → ###</div>
+            <div className="text-[var(--text-2)] font-mono text-[11px]">&quot;first ..., then ..., finally&quot;</div>
           </div>
         </div>
       </div>
@@ -310,7 +289,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       {/* Recent Dictations */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-base font-display font-semibold text-[#E8ECF2]">
+          <h3 className="text-base font-display font-semibold text-[var(--text-1)]">
             Recent Dictation
           </h3>
           <button
@@ -322,7 +301,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         </div>
 
         {history.length === 0 ? (
-          <div className="forge-card p-8 text-center text-[#5C6478] text-sm rounded-xl">
+          <div className="forge-card p-8 text-center text-[var(--text-3)] text-sm rounded-xl border border-[var(--border)] bg-[var(--panel)]">
             No dictations recorded yet. Press the hotkey and start speaking!
           </div>
         ) : (
@@ -330,15 +309,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             {history.map((item) => (
               <div
                 key={item.id}
-                className="forge-card p-4 flex items-start justify-between gap-4 group transition-all"
+                className="forge-card p-4 flex items-start justify-between gap-4 group transition-all bg-[var(--panel)] border border-[var(--border)] hover:border-[#FF4D5E]/30"
               >
                 <div className="space-y-1 flex-1 min-w-0">
-                  <p className="text-sm text-[#E8ECF2] line-clamp-2">
+                  <p className="text-sm text-[var(--text-1)] line-clamp-2">
                     {item.final_text}
                   </p>
-                  <div className="flex items-center gap-3 text-xs text-[#9BA3B5] font-mono">
+                  <div className="flex items-center gap-3 text-xs text-[var(--text-2)] font-mono">
                     <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-[#5C6478]" />
+                      <Clock className="w-3 h-3 text-[var(--text-3)]" />
                       {new Date(item.created_at).toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
@@ -352,8 +331,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                     <span
                       className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
                         item.verification_status === "Pass"
-                          ? "bg-[#3FE3C4]/15 text-[#3FE3C4] border border-[#3FE3C4]/30"
-                          : "bg-amber-500/15 text-amber-300 border border-amber-500/30"
+                          ? "bg-teal-500/15 text-teal-700 dark:text-[#3FE3C4] border border-teal-500/30"
+                          : "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30"
                       }`}
                     >
                       {item.verification_status}
@@ -363,11 +342,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
                 <button
                   onClick={() => copyText(item.final_text, item.id)}
-                  className="p-2 rounded-lg bg-[#1C2028] hover:bg-[#252A34] text-[#9BA3B5] hover:text-[#E8ECF2] transition-colors"
+                  className="p-2 rounded-lg bg-[var(--raised)] hover:bg-[var(--raised-hover)] text-[var(--text-2)] hover:text-[var(--text-1)] border border-[var(--border)] transition-colors"
                   title="Copy to clipboard"
                 >
                   {copiedId === item.id ? (
-                    <Check className="w-4 h-4 text-[#3FE3C4]" />
+                    <Check className="w-4 h-4 text-teal-600 dark:text-[#3FE3C4]" />
                   ) : (
                     <Copy className="w-4 h-4" />
                   )}

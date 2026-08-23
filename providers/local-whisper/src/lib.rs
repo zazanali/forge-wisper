@@ -46,12 +46,13 @@ impl ModelManager {
     }
 
     fn resolve_models_dir() -> PathBuf {
-        // First check workspace models directory
+        // 1. Check workspace/local models directory
         let local_path = Path::new("models");
         if local_path.exists() {
             return local_path.to_path_buf();
         }
 
+        // 2. Check AppData models directory
         if let Some(proj) = ProjectDirs::from("com", "forge", "ForgeWisper") {
             let dir = proj.data_dir().join("models");
             let _ = create_dir_all(&dir);
@@ -59,6 +60,48 @@ impl ModelManager {
         } else {
             PathBuf::from("models")
         }
+    }
+
+    /// Searches across all candidate model directories to find an existing model binary
+    pub fn find_model_file(&self, filename: &str) -> Option<PathBuf> {
+        let mut candidates = Vec::new();
+
+        // Check primary models_dir
+        candidates.push(self.models_dir.join(filename));
+
+        // Check workspace "models/"
+        candidates.push(Path::new("models").join(filename));
+
+        // Check app data directory
+        if let Some(proj) = ProjectDirs::from("com", "forge", "ForgeWisper") {
+            candidates.push(proj.data_dir().join("models").join(filename));
+            candidates.push(proj.cache_dir().join("whisper").join(filename));
+        }
+
+        // Check user home .cache/whisper
+        if let Ok(home) = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")) {
+            candidates.push(PathBuf::from(home).join(".cache").join("whisper").join(filename));
+        }
+
+        // Check current executable directory
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(parent) = exe.parent() {
+                candidates.push(parent.join("models").join(filename));
+                candidates.push(parent.join("..").join("models").join(filename));
+            }
+        }
+
+        for path in candidates {
+            if path.exists() {
+                if let Ok(meta) = path.metadata() {
+                    if meta.len() > 1000 {
+                        return Some(path);
+                    }
+                }
+            }
+        }
+
+        None
     }
 
     pub fn get_models_dir(&self) -> &Path {
@@ -112,13 +155,21 @@ impl ModelManager {
                 "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin",
                 false,
             ),
+            (
+                "large-v3",
+                "Whisper Large v3",
+                "ggml-large-v3.bin",
+                3100,
+                4700,
+                "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin",
+                false,
+            ),
         ];
 
         catalog
             .into_iter()
             .map(|(id, name, filename, size_mb, ram_mb, url, is_def)| {
-                let path = self.models_dir.join(filename);
-                let is_installed = path.exists() && path.metadata().map(|m| m.len() > 1000).unwrap_or(false);
+                let is_installed = self.find_model_file(filename).is_some();
                 LocalModelInfo {
                     id: id.to_string(),
                     name: name.to_string(),
@@ -131,6 +182,26 @@ impl ModelManager {
                 }
             })
             .collect()
+    }
+
+    /// Auto-picks the best available local model that is already downloaded
+    pub fn auto_pick_installed_model(&self) -> Option<LocalModelInfo> {
+        let models = self.list_available_models();
+        let installed: Vec<LocalModelInfo> = models.into_iter().filter(|m| m.is_installed).collect();
+
+        if installed.is_empty() {
+            return None;
+        }
+
+        // Priority order: large-v3-turbo > large-v3 > medium > small > base > tiny
+        let priority = ["large-v3-turbo", "large-v3", "medium", "small", "base", "tiny"];
+        for pref in priority {
+            if let Some(found) = installed.iter().find(|m| m.id == pref) {
+                return Some(found.clone());
+            }
+        }
+
+        installed.into_iter().next()
     }
 
     pub async fn download_model(&self, model_id: &str) -> Result<PathBuf, ProviderError> {
@@ -175,9 +246,8 @@ impl ModelManager {
             .find(|m| m.id == model_id)
             .ok_or_else(|| ProviderError::ModelError(format!("Model ID '{}' not found", model_id)))?;
 
-        let dest_path = self.models_dir.join(&target.filename);
-        if dest_path.exists() {
-            remove_file(dest_path).map_err(|e| ProviderError::ModelError(e.to_string()))?;
+        if let Some(existing_path) = self.find_model_file(&target.filename) {
+            remove_file(existing_path).map_err(|e| ProviderError::ModelError(e.to_string()))?;
             Ok(true)
         } else {
             Ok(false)
@@ -266,6 +336,7 @@ impl TranscriptionProvider for LocalWhisperProvider {
                 "small".to_string(),
                 "medium".to_string(),
                 "large-v3-turbo".to_string(),
+                "large-v3".to_string(),
             ],
             requires_api_key: false,
         }
@@ -280,29 +351,30 @@ impl TranscriptionProvider for LocalWhisperProvider {
             return Err(ProviderError::InvalidAudio("Audio data is empty".to_string()));
         }
 
-        let model_id = options
+        let requested_id = options
             .model
             .clone()
             .unwrap_or_else(|| "base".to_string());
 
         let models = self.model_manager.list_available_models();
-        let target_model = models.into_iter().find(|m| m.id == model_id);
+        let target_model = models.iter().find(|m| m.id == requested_id);
 
-        let model_installed = target_model.as_ref().map(|m| m.is_installed).unwrap_or(false);
-
-        if !model_installed {
+        let effective_model_id = if target_model.map(|m| m.is_installed).unwrap_or(false) {
+            requested_id
+        } else if let Some(auto_picked) = self.model_manager.auto_pick_installed_model() {
+            // Auto-picked already installed model
+            auto_picked.id
+        } else {
             return Err(ProviderError::ModelError(format!(
-                "Local Whisper model '{}' is not downloaded. Please download it from Model Manager.",
-                model_id
+                "No offline Whisper model found. Please download a model from Model Manager (e.g. Whisper Base or Tiny) or place ggml-*.bin in the models folder.",
             )));
-        }
+        };
 
-        // Local transcription execution
         Ok(Transcript {
             text: "Local transcription processed successfully.".to_string(),
             language: options.language.unwrap_or_else(|| "en".to_string()),
             provider: "local-whisper".to_string(),
-            model: model_id,
+            model: effective_model_id,
             duration_ms: audio.duration_ms,
             confidence: Some(0.96),
         })

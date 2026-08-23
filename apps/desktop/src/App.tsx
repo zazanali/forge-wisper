@@ -3,28 +3,47 @@ import { Dashboard } from "./views/Dashboard";
 import { HistoryView } from "./views/HistoryView";
 import { SettingsView } from "./views/SettingsView";
 import { ModelManagerView } from "./views/ModelManagerView";
+import { DictionaryView } from "./views/DictionaryView";
 import { FloatingRecorder } from "./views/FloatingRecorder";
+import { ForgeLogo } from "./components/ForgeLogo";
 import { api } from "./lib/tauri";
 import type { AppSettings } from "./types";
 import {
-  Mic,
+  LayoutDashboard,
   History as HistoryIcon,
   Cpu,
-  Settings as SettingsIcon,
+  Settings2,
+  BookA,
   Sparkles,
   Zap,
   ShieldCheck,
   PanelLeftClose,
+  Sun,
+  Moon,
 } from "lucide-react";
 
-type Tab = "dashboard" | "history" | "models" | "settings";
+type Tab = "dashboard" | "history" | "models" | "dictionary" | "settings";
 
 export const App: React.FC = () => {
   const [isRecorderWindow, setIsRecorderWindow] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [currentTab, setCurrentTab] = useState<Tab>("dashboard");
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const resolveEffectiveTheme = (themePreference?: string) => {
+    if (themePreference === "system") {
+      return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light";
+    }
+    return themePreference || "light";
+  };
+
+  const applyTheme = (themePreference?: string) => {
+    const effective = resolveEffectiveTheme(themePreference);
+    document.documentElement.setAttribute("data-theme", effective);
+  };
 
   useEffect(() => {
     // Check if we are mounted inside the floating recorder window
@@ -33,7 +52,10 @@ export const App: React.FC = () => {
       return;
     }
 
-    api.getSettings().then(setSettings).catch(console.error);
+    api.getSettings().then((s) => {
+      setSettings(s);
+      applyTheme(s.theme);
+    }).catch(console.error);
 
     const unlistenToast = api.onToast((msg) => {
       setToastMessage(msg);
@@ -41,7 +63,10 @@ export const App: React.FC = () => {
     });
 
     const unlistenState = api.onStateChange(() => {
-      api.getSettings().then(setSettings).catch(console.error);
+      api.getSettings().then((s) => {
+        setSettings(s);
+        applyTheme(s.theme);
+      }).catch(console.error);
     });
 
     return () => {
@@ -50,20 +75,45 @@ export const App: React.FC = () => {
     };
   }, []);
 
+  // Real-time system theme change listener for Windows/OS theme toggles
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleSystemThemeChange = () => {
+      if (settings?.theme === "system") {
+        applyTheme("system");
+      }
+    };
+    mediaQuery.addEventListener("change", handleSystemThemeChange);
+    return () => mediaQuery.removeEventListener("change", handleSystemThemeChange);
+  }, [settings?.theme]);
+
+  const toggleTheme = async () => {
+    if (!settings) return;
+    const currentEffective = resolveEffectiveTheme(settings.theme);
+    const newTheme = currentEffective === "light" ? "dark" : "light";
+    const updated = { ...settings, theme: newTheme as "dark" | "light" | "system" };
+    try {
+      await api.updateSettings(updated);
+      setSettings(updated);
+      applyTheme(newTheme);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   if (isRecorderWindow) {
     return <FloatingRecorder />;
   }
 
-  const isGroq = settings?.provider === "groq";
   const isLocal = settings?.provider === "local-whisper";
+  const isDark = resolveEffectiveTheme(settings?.theme) === "dark";
 
   return (
-    <div className="flex h-screen bg-[#0C0E14] text-[#E8ECF2] select-none overflow-hidden font-sans">
+    <div className="flex h-screen bg-[var(--bg)] text-[var(--text-1)] select-none overflow-hidden font-sans">
       {/* Collapsible Left Sidebar (ForgeClip Design System) */}
       <aside
-        className={`${
-          isSidebarOpen ? "w-64 p-5" : "w-20 p-3"
-        } bg-[#151820]/95 backdrop-blur-2xl border-r border-[#2A2E38] flex flex-col justify-between shrink-0 z-20 transition-all duration-300 ease-in-out`}
+        className={`${isSidebarOpen ? "w-64 p-5" : "w-20 p-3"
+          } bg-[var(--panel)]/95 backdrop-blur-2xl border-r border-[var(--border)] flex flex-col justify-between shrink-0 z-20 transition-all duration-300 ease-in-out`}
       >
         {/* Top Header & Navigation */}
         <div className="space-y-6">
@@ -75,11 +125,9 @@ export const App: React.FC = () => {
                 title="Collapse sidebar (Click logo or header)"
                 className="flex items-center gap-3 text-left group min-w-0 transition-opacity hover:opacity-90"
               >
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#FF4D5E] to-[#B91C1C] flex items-center justify-center shadow-lg shadow-[#FF4D5E]/25 shrink-0 group-hover:scale-105 transition-transform">
-                  <Mic className="w-5 h-5 text-white" />
-                </div>
+                <ForgeLogo size={36} className="group-hover:scale-105 transition-transform" />
                 <div className="min-w-0">
-                  <h1 className="text-base font-display font-bold text-[#E8ECF2] tracking-tight">
+                  <h1 className="text-base font-display font-bold text-[var(--text-1)] tracking-tight">
                     Forge<span className="text-[#FF4D5E]">Wisper</span>
                   </h1>
                   <span className="text-[10px] font-bold text-[#3FE3C4] block tracking-wide truncate">
@@ -92,7 +140,7 @@ export const App: React.FC = () => {
               <button
                 onClick={() => setIsSidebarOpen(false)}
                 title="Collapse sidebar menu"
-                className="p-1.5 rounded-xl text-[#9BA3B5] hover:text-[#FF4D5E] hover:bg-[#1C2028] border border-transparent hover:border-[#2A2E38] transition-all ml-1 shrink-0"
+                className="p-1.5 rounded-xl text-[var(--text-2)] hover:text-[#FF4D5E] hover:bg-[var(--raised)] border border-transparent hover:border-[var(--border)] transition-all ml-1 shrink-0"
               >
                 <PanelLeftClose className="w-4 h-4" />
               </button>
@@ -103,11 +151,9 @@ export const App: React.FC = () => {
               <button
                 onClick={() => setIsSidebarOpen(true)}
                 title="Click logo to open menu"
-                className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FF4D5E] to-[#B91C1C] flex items-center justify-center shadow-lg shadow-[#FF4D5E]/25 hover:scale-110 active:scale-95 transition-all text-white group relative"
+                className="hover:scale-110 active:scale-95 transition-all group relative"
               >
-                <Mic className="w-5 h-5" />
-                {/* Glow ring */}
-                <span className="absolute inset-0 rounded-xl bg-[#FF4D5E] opacity-0 group-hover:opacity-30 blur-sm transition-opacity" />
+                <ForgeLogo size={38} />
               </button>
             </div>
           )}
@@ -117,15 +163,13 @@ export const App: React.FC = () => {
             <button
               onClick={() => setCurrentTab("dashboard")}
               title="Dashboard"
-              className={`w-full flex items-center ${
-                isSidebarOpen ? "gap-3 px-3.5" : "justify-center px-0"
-              } py-2.5 rounded-xl text-xs font-semibold transition-all relative ${
-                currentTab === "dashboard"
+              className={`w-full flex items-center ${isSidebarOpen ? "gap-3 px-3.5" : "justify-center px-0"
+                } py-2.5 rounded-xl text-xs font-semibold transition-all relative ${currentTab === "dashboard"
                   ? "bg-[#FF4D5E]/12 text-[#FF4D5E] font-bold"
-                  : "text-[#9BA3B5] hover:text-[#E8ECF2] hover:bg-[#1C2028]"
-              }`}
+                  : "text-[var(--text-2)] hover:text-[var(--text-1)] hover:bg-[var(--raised)]"
+                }`}
             >
-              <Mic className="w-4 h-4 shrink-0" />
+              <LayoutDashboard className="w-4 h-4 shrink-0" strokeWidth={currentTab === "dashboard" ? 2.2 : 1.9} />
               {isSidebarOpen && <span>Dashboard</span>}
               {currentTab === "dashboard" && (
                 <span className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#FF4D5E] rounded-l-full" />
@@ -135,15 +179,13 @@ export const App: React.FC = () => {
             <button
               onClick={() => setCurrentTab("history")}
               title="History"
-              className={`w-full flex items-center ${
-                isSidebarOpen ? "gap-3 px-3.5" : "justify-center px-0"
-              } py-2.5 rounded-xl text-xs font-semibold transition-all relative ${
-                currentTab === "history"
+              className={`w-full flex items-center ${isSidebarOpen ? "gap-3 px-3.5" : "justify-center px-0"
+                } py-2.5 rounded-xl text-xs font-semibold transition-all relative ${currentTab === "history"
                   ? "bg-[#FF4D5E]/12 text-[#FF4D5E] font-bold"
-                  : "text-[#9BA3B5] hover:text-[#E8ECF2] hover:bg-[#1C2028]"
-              }`}
+                  : "text-[var(--text-2)] hover:text-[var(--text-1)] hover:bg-[var(--raised)]"
+                }`}
             >
-              <HistoryIcon className="w-4 h-4 shrink-0" />
+              <HistoryIcon className="w-4 h-4 shrink-0" strokeWidth={currentTab === "history" ? 2.2 : 1.9} />
               {isSidebarOpen && <span>History</span>}
               {currentTab === "history" && (
                 <span className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#FF4D5E] rounded-l-full" />
@@ -153,15 +195,13 @@ export const App: React.FC = () => {
             <button
               onClick={() => setCurrentTab("models")}
               title="Local Models"
-              className={`w-full flex items-center ${
-                isSidebarOpen ? "gap-3 px-3.5" : "justify-center px-0"
-              } py-2.5 rounded-xl text-xs font-semibold transition-all relative ${
-                currentTab === "models"
+              className={`w-full flex items-center ${isSidebarOpen ? "gap-3 px-3.5" : "justify-center px-0"
+                } py-2.5 rounded-xl text-xs font-semibold transition-all relative ${currentTab === "models"
                   ? "bg-[#FF4D5E]/12 text-[#FF4D5E] font-bold"
-                  : "text-[#9BA3B5] hover:text-[#E8ECF2] hover:bg-[#1C2028]"
-              }`}
+                  : "text-[var(--text-2)] hover:text-[var(--text-1)] hover:bg-[var(--raised)]"
+                }`}
             >
-              <Cpu className="w-4 h-4 shrink-0" />
+              <Cpu className="w-4 h-4 shrink-0" strokeWidth={currentTab === "models" ? 2.2 : 1.9} />
               {isSidebarOpen && <span>Local Models</span>}
               {currentTab === "models" && (
                 <span className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#FF4D5E] rounded-l-full" />
@@ -169,17 +209,31 @@ export const App: React.FC = () => {
             </button>
 
             <button
+              onClick={() => setCurrentTab("dictionary")}
+              title="Dictionary & Snippets"
+              className={`w-full flex items-center ${isSidebarOpen ? "gap-3 px-3.5" : "justify-center px-0"
+                } py-2.5 rounded-xl text-xs font-semibold transition-all relative ${currentTab === "dictionary"
+                  ? "bg-[#FF4D5E]/12 text-[#FF4D5E] font-bold"
+                  : "text-[var(--text-2)] hover:text-[var(--text-1)] hover:bg-[var(--raised)]"
+                }`}
+            >
+              <BookA className="w-4 h-4 shrink-0" strokeWidth={currentTab === "dictionary" ? 2.2 : 1.9} />
+              {isSidebarOpen && <span>Dictionary & Snippets</span>}
+              {currentTab === "dictionary" && (
+                <span className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#FF4D5E] rounded-l-full" />
+              )}
+            </button>
+
+            <button
               onClick={() => setCurrentTab("settings")}
               title="Settings"
-              className={`w-full flex items-center ${
-                isSidebarOpen ? "gap-3 px-3.5" : "justify-center px-0"
-              } py-2.5 rounded-xl text-xs font-semibold transition-all relative ${
-                currentTab === "settings"
+              className={`w-full flex items-center ${isSidebarOpen ? "gap-3 px-3.5" : "justify-center px-0"
+                } py-2.5 rounded-xl text-xs font-semibold transition-all relative ${currentTab === "settings"
                   ? "bg-[#FF4D5E]/12 text-[#FF4D5E] font-bold"
-                  : "text-[#9BA3B5] hover:text-[#E8ECF2] hover:bg-[#1C2028]"
-              }`}
+                  : "text-[var(--text-2)] hover:text-[var(--text-1)] hover:bg-[var(--raised)]"
+                }`}
             >
-              <SettingsIcon className="w-4 h-4 shrink-0" />
+              <Settings2 className="w-4 h-4 shrink-0" strokeWidth={currentTab === "settings" ? 2.2 : 1.9} />
               {isSidebarOpen && <span>Settings</span>}
               {currentTab === "settings" && (
                 <span className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#FF4D5E] rounded-l-full" />
@@ -188,69 +242,85 @@ export const App: React.FC = () => {
           </nav>
         </div>
 
-        {/* Bottom Engine Privacy Status Badge */}
+        {/* Bottom Engine Privacy Status Badge & Quick Theme Toggle */}
         {isSidebarOpen ? (
-          <div className="p-3.5 bg-[#0C0E14] rounded-xl border border-[#2A2E38] space-y-2">
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="text-[#5C6478] font-mono text-[10px] uppercase tracking-wider">ENGINE</span>
-              <span className="font-bold text-[#E8ECF2] uppercase text-[10px] font-mono">
-                {settings?.provider || "MOCK"}
-              </span>
-            </div>
+          <div className="space-y-2">
+            <div className="p-3.5 bg-[var(--raised)] rounded-xl border border-[var(--border)] space-y-2">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-[var(--text-3)] font-mono text-[10px] uppercase tracking-wider">ENGINE</span>
+                <span className="font-bold text-[var(--text-1)] uppercase text-[10px] font-mono">
+                  {isLocal ? "LOCAL" : "GROQ"}
+                </span>
+              </div>
 
-            <div className="flex items-center gap-2 text-xs">
-              {isGroq && (
-                <>
-                  <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                  <span className="text-amber-300 font-mono text-[11px]">
-                    Groq Cloud STT
-                  </span>
-                </>
-              )}
-              {isLocal && (
-                <>
-                  <ShieldCheck className="w-3.5 h-3.5 text-[#3FE3C4] shrink-0" />
-                  <span className="text-[#3FE3C4] font-mono text-[11px]">
-                    100% Offline Local
-                  </span>
-                </>
-              )}
-              {!isGroq && !isLocal && (
-                <>
-                  <Sparkles className="w-3.5 h-3.5 text-[#FF4D5E] shrink-0" />
-                  <span className="text-[#FF4D5E] font-mono text-[11px]">
-                    Mock Testing
-                  </span>
-                </>
-              )}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs">
+                  {isLocal ? (
+                    <>
+                      <ShieldCheck className="w-3.5 h-3.5 text-[#3FE3C4] shrink-0" />
+                      <span className="text-[#3FE3C4] font-mono text-[11px]">
+                        Offline Local
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span className="text-amber-400 font-mono text-[11px]">
+                        Groq Cloud
+                      </span>
+                    </>
+                  )}
+                </div>
+
+                {/* 1-Click Theme Switcher */}
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  title={`Switch to ${isDark ? "Light" : "Dark"} mode`}
+                  className="p-1.5 rounded-lg bg-[var(--panel)] hover:bg-[var(--raised-hover)] border border-[var(--border)] text-[var(--text-2)] hover:text-[#FF4D5E] transition-colors"
+                >
+                  {isDark ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-[#FF4D5E]" />}
+                </button>
+              </div>
+              <div className="text-[10px] font-mono text-[var(--text-3)] text-center pt-1.5 opacity-70 hover:opacity-100 transition-opacity">
+                by <strong className="text-[var(--text-2)]">Ali Zazan</strong>
+              </div>
             </div>
           </div>
         ) : (
-          <div
-            className="p-2 bg-[#0C0E14] rounded-xl border border-[#2A2E38] flex items-center justify-center"
-            title={
-              isGroq
-                ? "Groq Cloud STT"
-                : isLocal
-                ? "100% Offline Local"
-                : "Mock Testing"
-            }
-          >
-            {isGroq && <Zap className="w-4 h-4 text-amber-400" />}
-            {isLocal && <ShieldCheck className="w-4 h-4 text-[#3FE3C4]" />}
-            {!isGroq && !isLocal && <Sparkles className="w-4 h-4 text-[#FF4D5E]" />}
+          <div className="space-y-2 flex flex-col items-center">
+            <div
+              className="p-2 bg-[var(--raised)] rounded-xl border border-[var(--border)] flex items-center justify-center"
+              title={isLocal ? "100% Offline Local" : "Groq Cloud STT"}
+            >
+              {isLocal ? (
+                <ShieldCheck className="w-4 h-4 text-[#3FE3C4]" />
+              ) : (
+                <Zap className="w-4 h-4 text-amber-400" />
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={toggleTheme}
+              title={`Switch to ${isDark ? "Light" : "Dark"} mode`}
+              className="p-2 rounded-xl bg-[var(--panel)] hover:bg-[var(--raised-hover)] border border-[var(--border)] text-[var(--text-2)] hover:text-[#FF4D5E] transition-colors"
+            >
+              {isDark ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-[#FF4D5E]" />}
+            </button>
           </div>
         )}
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden bg-[#0C0E14]">
-        {/* Scrollable View Container */}
-        <div className="flex-1 overflow-y-auto p-8 max-w-5xl w-full mx-auto">
+      <main className="flex-1 overflow-y-auto overflow-x-hidden h-full bg-[var(--bg)] custom-scrollbar">
+        {/* Responsive Page Viewport Container */}
+        <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 md:px-8 lg:px-10 py-6 md:py-8 transition-all duration-300">
           {currentTab === "dashboard" && <Dashboard onNavigate={setCurrentTab} />}
           {currentTab === "history" && <HistoryView />}
           {currentTab === "models" && <ModelManagerView />}
-          {currentTab === "settings" && <SettingsView />}
+          {currentTab === "dictionary" && <DictionaryView />}
+          {currentTab === "settings" && <SettingsView onNavigate={setCurrentTab} />}
         </div>
       </main>
 

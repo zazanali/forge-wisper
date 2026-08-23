@@ -12,3 +12,6 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }
+
+[dev-dependencies]
+image = { version = "0.25", features = ["png", "bmp"] }
