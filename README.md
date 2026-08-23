@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🎙️ Forge Wisper
+<img src="apps/desktop/src-tauri/icons/icon.png" alt="Forge Wisper Logo" width="128" />
+
+# Forge Wisper
 
 **Next-Generation Open-Source Voice-to-Structured-Text Desktop Application**
 
