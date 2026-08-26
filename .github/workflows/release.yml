@@ -58,13 +58,16 @@ jobs:
           releaseBody: |
             ## Forge Wisper Desktop Setup (${{ github.ref_name }})
             
-            Download and run the official Windows installer below to install **Forge Wisper**.
+            Download and run the official Windows installer (`.exe`) below to install **Forge Wisper**.
             
-            ### Highlights
-            - 🎙️ **Frictionless Global Dictation**: Press `Ctrl + Space` anywhere to speak.
-            - ⚡ **Dual AI Engines**: Ultra-fast Groq Cloud & 100% Offline Local Whisper.
-            - 🧠 **Smart Speech Cleanup**: Automatic filler removal, self-corrections & verbal punctuation.
-            - 🛡️ **Privacy First**: In-memory audio processing with zero disk persistence.
+            ### ✨ What's New in This Release
+            - 🎨 **Redesigned Modern Dashboard**: Balanced 50/50 hero cards with a responsive real-time audio waveform equalizer.
+            - 📊 **Dynamic Accomplishment Metrics**: Live SQLite-driven analytics for Total Words Transcribed, Time Saved, Sessions, and Typing WPM with **Today**, **This Week**, and **All Time** filters.
+            - 🚀 **Zero-Config Windows Auto-Startup**: Automatically registers with Windows Registry on boot so dictation is always ready when your PC powers on.
+            - 🎙️ **Hardware Audio VU Meter**: Real-time microphone input level and segmented LED monitoring.
+            - ⚡ **Dual AI Engines**: Ultra-low latency Groq Cloud & 100% offline private Local Whisper with dynamic model switching.
+            - ⌨️ **Interactive Shortcut Keycaps**: Dynamic hotkey indicator displaying your exact configured global shortcut.
+            - 🌓 **High-Contrast Theme Polish**: Crisp readability in both Dark and Light modes.
             
             *Created by Ali Zazan • Built for creators and developers.*
           releaseDraft: false

@@ -1044,7 +1044,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                   <div className="text-[16px] font-semibold text-[var(--text-primary)] flex items-center gap-2">
                     Forge Wisper
                     <span className="text-[10px] font-mono text-[var(--accent)] px-2 py-0.5 rounded-[4px] bg-[var(--accent-subtle)] border border-[var(--accent-border)]">
-                      v0.1.0-beta
+                      v0.1.1-beta
                     </span>
                   </div>
                   <p className="text-[13px] text-[var(--text-secondary)] mt-0.5">
