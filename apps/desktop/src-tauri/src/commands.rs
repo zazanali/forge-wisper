@@ -5,8 +5,7 @@ use forge_provider_local_whisper::{HardwareDetector, HardwareRecommendation, Loc
 use forge_security::SecretStore;
 use forge_storage::HistoryRecord;
 use forge_transcription::Transcript;
-use tauri::{AppHandle, State};
-use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
+use tauri::{AppHandle, Emitter, State};
 
 #[tauri::command]
 pub fn get_processing_state(state: State<'_, PipelineState>) -> ProcessingState {
@@ -49,20 +48,23 @@ pub fn update_settings(
     settings: AppSettings,
     state: State<'_, PipelineState>,
 ) -> Result<(), String> {
-    settings.save();
-    let mut s = state.settings.lock().unwrap();
+    // 1. Sync OS startup autostart state
+    let _ = crate::set_autostart(settings.launch_at_startup);
 
-    // Dynamically update OS global hotkey registration if changed
-    if s.hotkey != settings.hotkey {
-        let _ = app.global_shortcut().unregister_all();
-        if let Ok(new_sc) = settings.hotkey.parse::<Shortcut>() {
-            let _ = app.global_shortcut().register(new_sc);
-        } else if let Ok(default_sc) = "Control+Space".parse::<Shortcut>() {
-            let _ = app.global_shortcut().register(default_sc);
-        }
+    // 2. Always save settings to disk and in-memory state
+    settings.save();
+    {
+        let mut s = state.settings.lock().unwrap();
+        *s = settings.clone();
     }
 
-    *s = settings;
+    // 3. Dynamically update OS global hotkey registration
+    let reg_res = crate::register_global_hotkey(&app, &settings.hotkey);
+    if let Err(err_msg) = reg_res {
+        println!("[Settings] Hotkey registration warning: {}", err_msg);
+        return Err(err_msg);
+    }
+
     Ok(())
 }
 
@@ -145,7 +147,7 @@ pub fn reprocess_history_item(
         .find(|r| r.id == id)
         .ok_or_else(|| "History record not found".to_string())?;
 
-    let dummy_transcript = Transcript {
+    let source_transcript = Transcript {
         text: record.raw_text.clone(),
         language: "en".to_string(),
         provider: record.provider_id.clone(),
@@ -165,7 +167,7 @@ pub fn reprocess_history_item(
         snippets,
     };
 
-    let cleaned = RuleBasedCleaner::clean(&dummy_transcript, &options).map_err(|e| e.to_string())?;
+    let cleaned = RuleBasedCleaner::clean(&source_transcript, &options).map_err(|e| e.to_string())?;
     Ok(cleaned.cleaned_text)
 }
 
@@ -176,15 +178,41 @@ pub fn list_models(state: State<'_, PipelineState>) -> Vec<LocalModelInfo> {
 
 #[tauri::command]
 pub async fn download_model(
+    app: AppHandle,
     model_id: String,
     state: State<'_, PipelineState>,
 ) -> Result<String, String> {
+    let app_handle = app.clone();
+    let mid = model_id.clone();
+
     state
         .model_manager
-        .download_model(&model_id)
+        .download_model_with_progress(&model_id, move |downloaded, total| {
+            let percentage = if total > 0 {
+                ((downloaded as f64 / total as f64) * 100.0).round() as u32
+            } else {
+                0
+            };
+            let _ = app_handle.emit(
+                "forge://model-download-progress",
+                serde_json::json!({
+                    "model_id": mid,
+                    "downloaded_bytes": downloaded,
+                    "total_bytes": total,
+                    "percentage": percentage
+                }),
+            );
+        })
         .await
         .map(|p| p.to_string_lossy().to_string())
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_active_model_downloads(
+    state: State<'_, PipelineState>,
+) -> std::collections::HashMap<String, forge_provider_local_whisper::ModelDownloadProgress> {
+    state.model_manager.get_active_downloads()
 }
 
 #[tauri::command]
@@ -201,4 +229,40 @@ pub fn delete_model(
 #[tauri::command]
 pub fn get_hardware_recommendation() -> HardwareRecommendation {
     HardwareDetector::detect_and_recommend()
+}
+
+#[tauri::command]
+pub fn open_url(url: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", &url])
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_autostart_status() -> bool {
+    crate::check_is_autostart_enabled()
+}
+
+#[tauri::command]
+pub fn set_autostart_status(enable: bool) -> Result<(), String> {
+    crate::set_autostart(enable)
 }

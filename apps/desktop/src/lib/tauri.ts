@@ -41,10 +41,26 @@ export const api = {
   listModels: () => invoke<LocalModelInfo[]>("list_models"),
   downloadModel: (modelId: string) =>
     invoke<string>("download_model", { modelId }),
+  getActiveModelDownloads: () =>
+    invoke<
+      Record<
+        string,
+        {
+          model_id: string;
+          downloaded_bytes: number;
+          total_bytes: number;
+          percentage: number;
+        }
+      >
+    >("get_active_model_downloads"),
   deleteModel: (modelId: string) =>
     invoke<boolean>("delete_model", { modelId }),
   getHardwareRecommendation: () =>
     invoke<HardwareRecommendation>("get_hardware_recommendation"),
+  openUrl: (url: string) => invoke<void>("open_url", { url }),
+  getAutostartStatus: () => invoke<boolean>("get_autostart_status"),
+  setAutostart: (enable: boolean) =>
+    invoke<void>("set_autostart_status", { enable }),
 
   onStateChange: (
     callback: (payload: { state: ProcessingState; error?: string }) => void
@@ -53,6 +69,22 @@ export const api = {
       "forge://state-changed",
       (event) => callback(event.payload)
     );
+  },
+
+  onModelDownloadProgress: (
+    callback: (payload: {
+      model_id: string;
+      downloaded_bytes: number;
+      total_bytes: number;
+      percentage: number;
+    }) => void
+  ) => {
+    return listen<{
+      model_id: string;
+      downloaded_bytes: number;
+      total_bytes: number;
+      percentage: number;
+    }>("forge://model-download-progress", (event) => callback(event.payload));
   },
 
   onToast: (callback: (message: string) => void) => {

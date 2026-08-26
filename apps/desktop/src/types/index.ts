@@ -26,6 +26,7 @@ export interface AppSettings {
   dictionary: Record<string, string>;
   snippets: Record<string, string>;
   theme: "dark" | "light" | "system";
+  launch_at_startup?: boolean;
 }
 
 export interface AudioDeviceInfo {

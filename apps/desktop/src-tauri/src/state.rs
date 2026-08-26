@@ -44,6 +44,8 @@ pub struct AppSettings {
     pub snippets: HashMap<String, String>,
     #[serde(default = "default_theme")]
     pub theme: String,               // "dark", "light", "system"
+    #[serde(default)]
+    pub launch_at_startup: bool,
 }
 
 fn default_theme() -> String {
@@ -64,6 +66,7 @@ impl Default for AppSettings {
             dictionary: defaults.dictionary,
             snippets: defaults.snippets,
             theme: "light".to_string(),
+            launch_at_startup: false,
         }
     }
 }
@@ -118,6 +121,7 @@ pub struct PipelineState {
     pub model_manager: Arc<ModelManager>,
     pub groq_provider: Arc<GroqTranscriptionProvider>,
     pub local_provider: Arc<LocalWhisperProvider>,
+    pub last_recording_toggle: Arc<Mutex<Instant>>,
 }
 
 impl PipelineState {
@@ -142,6 +146,7 @@ impl PipelineState {
             model_manager,
             groq_provider,
             local_provider: Arc::new(LocalWhisperProvider::new()),
+            last_recording_toggle: Arc::new(Mutex::new(Instant::now())),
         }
     }
 
@@ -165,6 +170,16 @@ impl PipelineState {
                 | ProcessingState::Structuring
                 | ProcessingState::Verifying
                 | ProcessingState::Inserting => {
+                    // Position at bottom center of current/primary monitor
+                    if let Ok(Some(monitor)) = recorder_win.current_monitor() {
+                        let screen_size = monitor.size();
+                        let scale = monitor.scale_factor();
+                        let win_w = (110.0 * scale) as i32;
+                        let win_h = (36.0 * scale) as i32;
+                        let x = monitor.position().x + (screen_size.width as i32 - win_w) / 2;
+                        let y = monitor.position().y + (screen_size.height as i32 - win_h) - (60.0 * scale) as i32;
+                        let _ = recorder_win.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x, y }));
+                    }
                     let _ = recorder_win.show();
                 }
                 ProcessingState::Success | ProcessingState::Error | ProcessingState::Cancelled => {
@@ -191,7 +206,8 @@ impl PipelineState {
     }
 
     pub fn start_listening(&self, app: &AppHandle) -> Result<(), String> {
-        if self.is_active_recording.load(Ordering::SeqCst) {
+        let mut lock = self.active_recorder.lock().unwrap();
+        if lock.is_some() && self.is_active_recording.load(Ordering::SeqCst) {
             return Ok(());
         }
 
@@ -202,15 +218,14 @@ impl PipelineState {
 
         match AudioRecorder::start(mic_name.as_deref()) {
             Ok(recorder) => {
-                {
-                    let mut lock = self.active_recorder.lock().unwrap();
-                    *lock = Some(recorder);
-                }
+                *lock = Some(recorder);
                 self.is_active_recording.store(true, Ordering::SeqCst);
                 self.set_state(app, ProcessingState::Listening, None);
                 Ok(())
             }
             Err(e) => {
+                *lock = None;
+                self.is_active_recording.store(false, Ordering::SeqCst);
                 let err_str = format!("Microphone error: {}", e);
                 self.set_state(app, ProcessingState::Error, Some(err_str.clone()));
                 Err(err_str)

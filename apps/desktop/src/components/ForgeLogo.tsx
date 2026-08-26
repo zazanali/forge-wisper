@@ -31,7 +31,7 @@ export const ForgeLogo: React.FC<ForgeLogoProps> = ({
     >
       {glow && (
         <div
-          className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-[#FF4D5E] to-[#3FE3C4] opacity-40 blur-md pointer-events-none transition-opacity group-hover:opacity-75"
+          className="absolute inset-0 rounded-[8px] bg-[var(--accent)] opacity-20 blur-sm pointer-events-none transition-opacity group-hover:opacity-40"
         />
       )}
       <svg

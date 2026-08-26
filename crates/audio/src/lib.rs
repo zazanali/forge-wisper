@@ -71,21 +71,23 @@ impl AudioRecorder {
     pub fn start(device_name: Option<&str>) -> Result<Self, AudioError> {
         let host = cpal::default_host();
         let device = match device_name {
-            Some(name) => {
+            Some(name) if !name.trim().is_empty() => {
                 let mut found = None;
                 if let Ok(devices) = host.input_devices() {
                     for d in devices {
                         if let Ok(n) = d.name() {
-                            if n == name {
+                            if n == name || n.contains(name) || name.contains(&n) {
                                 found = Some(d);
                                 break;
                             }
                         }
                     }
                 }
-                found.ok_or_else(|| AudioError::NoDevice(format!("Device '{}' not found", name)))?
+                // If specific named device not found, gracefully fall back to default input device
+                found.or_else(|| host.default_input_device())
+                    .ok_or_else(|| AudioError::NoDevice("No audio input device available".to_string()))?
             }
-            None => host
+            _ => host
                 .default_input_device()
                 .ok_or_else(|| AudioError::NoDevice("No default input device found".to_string()))?,
         };

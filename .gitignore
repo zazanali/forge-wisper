@@ -105,3 +105,10 @@ desktop.ini
 *.PRD.md
 *.prd.md
 
+# --- Stitch & Agent Tooling ---
+.stitch/
+.agents/
+.gemini/
+scratch/
+
+

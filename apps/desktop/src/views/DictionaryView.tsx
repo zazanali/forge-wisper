@@ -16,10 +16,6 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowRight,
-  Scissors,
-  RotateCcw,
-  ListOrdered,
-  Brain,
 } from "lucide-react";
 
 // Helper for smart sliding-window pagination with ellipsis
@@ -194,8 +190,8 @@ export const DictionaryView: React.FC = () => {
 
   if (!settings) {
     return (
-      <div className="p-8 text-center text-[var(--text-3)] flex items-center justify-center gap-2 font-sans">
-        <Loader2 className="w-5 h-5 animate-spin text-[#FF4D5E]" /> Loading dictionary...
+      <div className="p-8 text-center text-[var(--text-muted)] flex items-center justify-center gap-2 font-sans">
+        <Loader2 className="w-4 h-4 animate-spin text-[var(--accent)]" /> Loading dictionary...
       </div>
     );
   }
@@ -228,21 +224,21 @@ export const DictionaryView: React.FC = () => {
   const snippetPaginationRange = getPaginationRange(activeSnippetPage, totalSnippetPages);
 
   return (
-    <div className="space-y-6 animate-fadeIn font-sans w-full pb-12">
+    <div className="space-y-5 animate-fadeIn font-sans w-full pb-12">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-display font-bold text-[var(--text-1)] flex items-center gap-2.5">
-            <BookOpen className="w-5 h-5 text-[#FF4D5E]" />
+          <h2 className="text-[18px] font-medium text-[var(--text-primary)] tracking-tight flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-[var(--accent)]" />
             Personal Dictionary & Voice Snippets
           </h2>
-          <p className="text-xs text-[var(--text-2)] mt-0.5">
+          <p className="text-[13px] text-[var(--text-secondary)] mt-0.5">
             Map phonetic terms to proper brand casing and configure expandable voice prompt shortcuts.
           </p>
         </div>
 
         {saveSuccess && (
-          <span className="inline-flex items-center gap-1.5 text-xs text-teal-600 dark:text-[#3FE3C4] bg-teal-500/15 px-3 py-1 rounded-xl border border-teal-500/30 font-bold shrink-0">
+          <span className="inline-flex items-center gap-1.5 text-[12px] text-[var(--success)] bg-[var(--success-bg)] px-2.5 py-1 rounded-[6px] border border-[var(--success-border)] font-medium font-mono shrink-0">
             <Check className="w-3.5 h-3.5" /> Saved
           </span>
         )}
@@ -251,16 +247,16 @@ export const DictionaryView: React.FC = () => {
       {/* Sub Tab Switcher & Search Bar */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         {/* Sub Tab Switcher */}
-        <div className="flex items-center gap-1.5 p-1 bg-[var(--raised)] border border-[var(--border)] rounded-xl w-full md:w-fit flex-wrap">
+        <div className="flex items-center gap-1 p-1 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-[8px] w-full md:w-fit flex-wrap">
           <button
             onClick={() => {
               setActiveSubTab("words");
               setWordPage(1);
             }}
-            className={`flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+            className={`flex-1 md:flex-initial flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-[6px] text-[13px] font-medium transition-all cursor-pointer ${
               activeSubTab === "words"
-                ? "bg-[#FF4D5E] text-white shadow-md shadow-[#FF4D5E]/20"
-                : "text-[var(--text-2)] hover:text-[var(--text-1)] hover:bg-[var(--panel)]"
+                ? "bg-[var(--accent-subtle)] text-[var(--accent)] border border-[var(--accent-border)]"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-transparent"
             }`}
           >
             <Type className="w-3.5 h-3.5" />
@@ -272,10 +268,10 @@ export const DictionaryView: React.FC = () => {
               setActiveSubTab("snippets");
               setSnippetPage(1);
             }}
-            className={`flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+            className={`flex-1 md:flex-initial flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-[6px] text-[13px] font-medium transition-all cursor-pointer ${
               activeSubTab === "snippets"
-                ? "bg-[#FF4D5E] text-white shadow-md shadow-[#FF4D5E]/20"
-                : "text-[var(--text-2)] hover:text-[var(--text-1)] hover:bg-[var(--panel)]"
+                ? "bg-[var(--accent-subtle)] text-[var(--accent)] border border-[var(--accent-border)]"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-transparent"
             }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
@@ -285,7 +281,7 @@ export const DictionaryView: React.FC = () => {
 
         {/* Search Input */}
         <div className="relative flex-1 md:max-w-xs">
-          <Search className="w-4 h-4 text-[var(--text-3)] absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-[var(--text-muted)] absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchQuery}
@@ -295,21 +291,21 @@ export const DictionaryView: React.FC = () => {
               setSnippetPage(1);
             }}
             placeholder={`Search ${activeSubTab === "words" ? "words & replacements" : "snippets & triggers"}...`}
-            className="w-full pl-10 pr-4 py-2 bg-[var(--panel)] border border-[var(--border)] rounded-xl text-xs text-[var(--text-1)] placeholder:text-[var(--text-3)] focus:outline-none focus:border-[#FF4D5E] transition-colors"
+            className="w-full pl-9 pr-3.5 py-1.5 bg-[var(--surface-primary)] border border-[var(--border)] rounded-[7px] text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)]"
           />
         </div>
       </div>
 
       {/* TAB 1: Word Replacements (Table Format + Smart Pagination) */}
       {activeSubTab === "words" && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Add Word Form */}
-          <div className="forge-card p-5 space-y-4 rounded-xl border border-[var(--border)] bg-[var(--panel)]">
+          <div className="forge-card p-4 space-y-3 rounded-[8px] border border-[var(--border)] bg-[var(--surface-primary)]">
             <div>
-              <h3 className="text-sm font-semibold text-[var(--text-1)] flex items-center gap-2 font-display">
-                <Type className="w-4 h-4 text-[#FF4D5E]" /> Add Phonetic Word Correction
+              <h3 className="text-[14px] font-medium text-[var(--text-primary)] flex items-center gap-2">
+                <Type className="w-4 h-4 text-[var(--accent)]" /> Add Phonetic Word Correction
               </h3>
-              <p className="text-xs text-[var(--text-2)] mt-0.5">
+              <p className="text-[13px] text-[var(--text-secondary)] mt-0.5">
                 Automatically convert spoken phonetic phrases into exact proper nouns, library names, or acronyms.
               </p>
             </div>
@@ -320,39 +316,37 @@ export const DictionaryView: React.FC = () => {
                 value={newSpoken}
                 onChange={(e) => setNewSpoken(e.target.value)}
                 placeholder="Spoken: e.g. 'lang chain'"
-                className="flex-1 px-3.5 py-2.5 bg-[var(--raised)] border border-[var(--border)] rounded-xl text-xs text-[var(--text-1)] placeholder:text-[var(--text-3)] focus:outline-none focus:border-[#FF4D5E] font-mono"
+                className="flex-1 px-3 py-2 bg-[var(--surface-primary)] border border-[var(--border)] rounded-[7px] text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] font-mono"
               />
               <input
                 type="text"
                 value={newPreferred}
                 onChange={(e) => setNewPreferred(e.target.value)}
                 placeholder="Preferred: e.g. 'LangChain'"
-                className="flex-1 px-3.5 py-2.5 bg-[var(--raised)] border border-[var(--border)] rounded-xl text-xs text-[var(--text-1)] placeholder:text-[var(--text-3)] focus:outline-none focus:border-[#FF4D5E] font-mono font-semibold"
+                className="flex-1 px-3 py-2 bg-[var(--surface-primary)] border border-[var(--border)] rounded-[7px] text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] font-mono font-medium"
               />
               <button
+                type="button"
                 onClick={addDictionaryWord}
                 disabled={!newSpoken.trim() || !newPreferred.trim()}
-                className="px-6 py-2.5 btn-blade rounded-xl text-xs font-semibold text-white disabled:opacity-40 flex items-center gap-2 justify-center shadow-md shadow-[#FF4D5E]/20 shrink-0"
+                className="px-4 py-2 btn-primary text-[13px] font-medium disabled:opacity-40 flex items-center gap-1.5 justify-center shrink-0 cursor-pointer"
               >
                 <Plus className="w-4 h-4" /> Add Word
               </button>
             </div>
           </div>
 
-          {/* Word List in Responsive Modern Data Table */}
-          <div className="forge-card rounded-xl border border-[var(--border)] bg-[var(--panel)] overflow-hidden shadow-sm">
-            <div className="p-4 border-b border-[var(--border)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <h4 className="text-xs font-semibold text-[#FF4D5E] uppercase tracking-wider font-display">
+          {/* Word List in Responsive Data Table */}
+          <div className="forge-card rounded-[8px] border border-[var(--border)] bg-[var(--surface-primary)] overflow-hidden">
+            <div className="p-3.5 border-b border-[var(--border-subtle)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <h4 className="text-[12px] font-medium text-[var(--accent)] uppercase tracking-wider font-mono">
                   Word Mappings Table ({filteredWords.length})
                 </h4>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[var(--raised)] border border-[var(--border)] text-[var(--text-2)]">
-                  {filteredWords.length} Total Entries
-                </span>
               </div>
 
               {/* Rows Per Page Selector */}
-              <div className="flex items-center gap-2 text-xs text-[var(--text-3)]">
+              <div className="flex items-center gap-2 text-[12px] text-[var(--text-secondary)] font-mono">
                 <span>Show:</span>
                 <select
                   value={wordsPerPage}
@@ -360,73 +354,75 @@ export const DictionaryView: React.FC = () => {
                     setWordsPerPage(Number(e.target.value));
                     setWordPage(1);
                   }}
-                  className="px-2.5 py-1 bg-[var(--raised)] border border-[var(--border)] rounded-lg text-xs text-[var(--text-1)] font-mono focus:outline-none focus:border-[#FF4D5E]"
+                  className="px-2 py-0.5 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-[6px] text-[12px] text-[var(--text-primary)] font-mono focus:outline-none focus:border-[var(--accent)]"
                 >
                   <option value={7}>7 rows</option>
                   <option value={10}>10 rows</option>
                   <option value={20}>20 rows</option>
                   <option value={50}>50 rows</option>
                 </select>
-                <span className="text-[var(--text-3)] font-mono ml-2">
+                <span className="text-[var(--text-muted)] font-mono ml-2">
                   Page {activeWordPage} of {totalWordPages}
                 </span>
               </div>
             </div>
 
             {filteredWords.length === 0 ? (
-              <div className="p-12 text-center text-[var(--text-3)] text-xs">
-                No dictionary words found. Add a phonetic word correction above!
+              <div className="p-10 text-center text-[var(--text-muted)] text-[13px]">
+                No dictionary words found. Add a phonetic word correction above.
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
+                <table className="w-full text-left text-[13px] border-collapse">
                   <thead>
-                    <tr className="bg-[var(--raised)]/80 text-[var(--text-3)] font-mono uppercase tracking-wider text-[11px] border-b border-[var(--border)]">
-                      <th className="py-3 px-4 font-semibold w-12 text-center">#</th>
-                      <th className="py-3 px-4 font-semibold">Spoken / Phonetic Trigger</th>
-                      <th className="py-3 px-2 font-semibold w-8 text-center"></th>
-                      <th className="py-3 px-4 font-semibold">Cleaned Replacement</th>
-                      <th className="py-3 px-4 font-semibold text-right w-24">Action</th>
+                    <tr className="bg-[var(--surface-elevated)] text-[var(--text-muted)] font-mono uppercase tracking-wider text-[11px] border-b border-[var(--border-subtle)]">
+                      <th className="py-2.5 px-3.5 font-medium w-12 text-center">#</th>
+                      <th className="py-2.5 px-3.5 font-medium">Spoken / Phonetic Trigger</th>
+                      <th className="py-2.5 px-2 font-medium w-8 text-center"></th>
+                      <th className="py-2.5 px-3.5 font-medium">Cleaned Replacement</th>
+                      <th className="py-2.5 px-3.5 font-medium text-right w-24">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[var(--border)]">
+                  <tbody className="divide-y divide-[var(--border-subtle)]">
                     {paginatedWords.map(([spoken, preferred], index) => {
                       const rowNum = startWordIdx + index + 1;
                       return (
                         <tr
                           key={spoken}
-                          className="hover:bg-[var(--raised)]/50 transition-colors group"
+                          className="hover:bg-[var(--surface-hover)] transition-colors group"
                         >
-                          <td className="py-3 px-4 text-center font-mono text-[var(--text-3)]">
+                          <td className="py-2.5 px-3.5 text-center font-mono text-[var(--text-muted)] text-[12px]">
                             {rowNum}
                           </td>
-                          <td className="py-3 px-4">
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-[var(--raised)] border border-[var(--border)] font-mono text-[var(--text-1)] font-medium">
+                          <td className="py-2.5 px-3.5">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-[4px] bg-[var(--surface-elevated)] border border-[var(--border)] font-mono text-[var(--text-primary)] text-[12px]">
                               &quot;{spoken}&quot;
                             </span>
                           </td>
-                          <td className="py-3 px-2 text-center text-[var(--text-3)]">
-                            <ArrowRight className="w-3.5 h-3.5 inline opacity-50 group-hover:opacity-100 group-hover:text-[#FF4D5E] transition-all" />
+                          <td className="py-2.5 px-2 text-center text-[var(--text-muted)]">
+                            <ArrowRight className="w-3.5 h-3.5 inline opacity-50 group-hover:opacity-100 group-hover:text-[var(--accent)] transition-all" />
                           </td>
-                          <td className="py-3 px-4 font-mono font-bold text-[#FF4D5E] text-[13px]">
+                          <td className="py-2.5 px-3.5 font-mono font-medium text-[var(--accent)] text-[13px]">
                             {preferred}
                           </td>
-                          <td className="py-3 px-4 text-right">
+                          <td className="py-2.5 px-3.5 text-right">
                             <div className="inline-flex items-center gap-1 justify-end">
                               <button
+                                type="button"
                                 onClick={() => copyText(preferred, `word-${spoken}`)}
-                                className="p-1.5 rounded-lg bg-[var(--raised)] hover:bg-[var(--raised-hover)] text-[var(--text-2)] hover:text-[var(--text-1)] border border-[var(--border)] transition-colors"
+                                className="p-1 rounded-[5px] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)] transition-colors cursor-pointer"
                                 title="Copy replacement text"
                               >
                                 {copiedKey === `word-${spoken}` ? (
-                                  <Check className="w-3.5 h-3.5 text-teal-600 dark:text-[#3FE3C4]" />
+                                  <Check className="w-3.5 h-3.5 text-[var(--success)]" />
                                 ) : (
                                   <Copy className="w-3.5 h-3.5" />
                                 )}
                               </button>
                               <button
+                                type="button"
                                 onClick={() => removeDictionaryWord(spoken)}
-                                className="p-1.5 rounded-lg hover:bg-[#FF4D5E]/20 text-[var(--text-3)] hover:text-[#FF4D5E] transition-colors"
+                                className="p-1 rounded-[5px] hover:bg-[var(--surface-hover)] text-[var(--text-muted)] hover:text-[var(--error)] transition-colors cursor-pointer"
                                 title="Delete mapping"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -443,23 +439,24 @@ export const DictionaryView: React.FC = () => {
 
             {/* Smart Sliding Window Pagination Controls */}
             {totalWordPages > 1 && (
-              <div className="p-3.5 bg-[var(--raised)]/40 border-t border-[var(--border)] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-                <span className="text-[var(--text-2)] font-mono text-center sm:text-left">
-                  Showing <strong className="text-[var(--text-1)]">{startWordIdx + 1}</strong> to{" "}
-                  <strong className="text-[var(--text-1)]">
+              <div className="p-3 bg-[var(--surface-elevated)] border-t border-[var(--border-subtle)] flex flex-col sm:flex-row items-center justify-between gap-3 text-[12px]">
+                <span className="text-[var(--text-secondary)] font-mono text-center sm:text-left">
+                  Showing <strong className="text-[var(--text-primary)]">{startWordIdx + 1}</strong> to{" "}
+                  <strong className="text-[var(--text-primary)]">
                     {Math.min(startWordIdx + wordsPerPage, filteredWords.length)}
                   </strong>{" "}
-                  of <strong className="text-[var(--text-1)]">{filteredWords.length}</strong> mappings
+                  of <strong className="text-[var(--text-primary)]">{filteredWords.length}</strong> mappings
                 </span>
 
-                <div className="flex items-center gap-1.5 flex-wrap justify-center">
+                <div className="flex items-center gap-1 flex-wrap justify-center font-mono">
                   <button
+                    type="button"
                     onClick={() => setWordPage((p) => Math.max(1, p - 1))}
                     disabled={activeWordPage === 1}
-                    className="p-1.5 rounded-lg bg-[var(--raised)] hover:bg-[var(--raised-hover)] text-[var(--text-2)] hover:text-[var(--text-1)] border border-[var(--border)] disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                    className="p-1 rounded-[5px] bg-[var(--surface-primary)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)] disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
                     title="Previous page"
                   >
-                    <ChevronLeft className="w-4 h-4" />
+                    <ChevronLeft className="w-3.5 h-3.5" />
                   </button>
 
                   {wordPaginationRange.map((item, i) => {
@@ -467,7 +464,7 @@ export const DictionaryView: React.FC = () => {
                       return (
                         <span
                           key={`dots-${i}`}
-                          className="px-2 py-1 text-xs font-mono text-[var(--text-3)]"
+                          className="px-1 text-[11px] font-mono text-[var(--text-muted)]"
                         >
                           •••
                         </span>
@@ -476,12 +473,13 @@ export const DictionaryView: React.FC = () => {
                     const pageNum = Number(item);
                     return (
                       <button
+                        type="button"
                         key={pageNum}
                         onClick={() => setWordPage(pageNum)}
-                        className={`w-7 h-7 rounded-lg text-xs font-mono font-semibold transition-all ${
+                        className={`min-w-[24px] h-6 px-1.5 rounded-[5px] text-[11px] font-medium transition-all cursor-pointer ${
                           activeWordPage === pageNum
-                            ? "bg-[#FF4D5E] text-white shadow-sm"
-                            : "bg-[var(--raised)] hover:bg-[var(--raised-hover)] text-[var(--text-2)] hover:text-[var(--text-1)] border border-[var(--border)]"
+                            ? "bg-[var(--accent-subtle)] text-[var(--accent)] border border-[var(--accent-border)] font-semibold"
+                            : "bg-[var(--surface-primary)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)]"
                         }`}
                       >
                         {pageNum}
@@ -490,12 +488,13 @@ export const DictionaryView: React.FC = () => {
                   })}
 
                   <button
+                    type="button"
                     onClick={() => setWordPage((p) => Math.min(totalWordPages, p + 1))}
                     disabled={activeWordPage === totalWordPages}
-                    className="p-1.5 rounded-lg bg-[var(--raised)] hover:bg-[var(--raised-hover)] text-[var(--text-2)] hover:text-[var(--text-1)] border border-[var(--border)] disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                    className="p-1 rounded-[5px] bg-[var(--surface-primary)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)] disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
                     title="Next page"
                   >
-                    <ChevronRight className="w-4 h-4" />
+                    <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -504,21 +503,21 @@ export const DictionaryView: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 2: Voice Snippets & Macros (Card Grid + Smart Pagination) */}
+      {/* TAB 2: Voice Snippets & Macros */}
       {activeSubTab === "snippets" && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Add Snippet Card */}
-          <div className="forge-card p-5 space-y-4 rounded-xl border border-[var(--border)] bg-[var(--panel)]">
+          <div className="forge-card p-4 space-y-3 rounded-[8px] border border-[var(--border)] bg-[var(--surface-primary)]">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-[var(--text-1)] flex items-center gap-2 font-display">
-                <FileText className="w-4 h-4 text-[#FF4D5E]" /> Add Voice Snippet / Prompt Shortcut
+              <h3 className="text-[14px] font-medium text-[var(--text-primary)] flex items-center gap-2">
+                <FileText className="w-4 h-4 text-[var(--accent)]" /> Add Voice Snippet / Prompt Shortcut
               </h3>
-              <span className="text-[11px] font-mono text-[#FF4D5E] dark:text-[#3FE3C4] font-semibold">Macro Expansion</span>
+              <span className="text-[11px] font-mono text-[var(--accent)] font-medium">Macro Expansion</span>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="text-xs text-[var(--text-2)] block mb-1.5 font-mono">
+                <label className="text-[12px] text-[var(--text-secondary)] block mb-1 font-mono">
                   Voice Trigger Phrase (What you speak)
                 </label>
                 <input
@@ -526,12 +525,12 @@ export const DictionaryView: React.FC = () => {
                   value={newSnippetTrigger}
                   onChange={(e) => setNewSnippetTrigger(e.target.value)}
                   placeholder="e.g. 'my signature', 'email signoff', 'bug report template'"
-                  className="w-full px-3.5 py-2.5 bg-[var(--raised)] border border-[var(--border)] rounded-xl text-xs text-[var(--text-1)] focus:outline-none focus:border-[#FF4D5E] font-mono placeholder:text-[var(--text-3)]"
+                  className="w-full px-3 py-2 bg-[var(--surface-primary)] border border-[var(--border)] rounded-[7px] text-[13px] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] font-mono placeholder:text-[var(--text-muted)]"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-[var(--text-2)] block mb-1.5 font-mono">
+                <label className="text-[12px] text-[var(--text-secondary)] block mb-1 font-mono">
                   Expanded Text Template (What gets inserted)
                 </label>
                 <textarea
@@ -539,50 +538,16 @@ export const DictionaryView: React.FC = () => {
                   value={newSnippetValue}
                   onChange={(e) => setNewSnippetValue(e.target.value)}
                   placeholder={`Best regards,\nAli\nLead Developer`}
-                  className="w-full px-3.5 py-2.5 bg-[var(--raised)] border border-[var(--border)] rounded-xl text-xs text-[var(--text-1)] focus:outline-none focus:border-[#FF4D5E] font-mono resize-y placeholder:text-[var(--text-3)]"
+                  className="w-full px-3 py-2 bg-[var(--surface-primary)] border border-[var(--border)] rounded-[7px] text-[13px] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] font-mono resize-y placeholder:text-[var(--text-muted)]"
                 />
               </div>
 
-              {/* Quick Presets */}
-              <div className="flex items-center gap-2 flex-wrap pt-1">
-                <span className="text-[11px] text-[var(--text-3)]">Insert preset:</span>
+              <div className="pt-1 flex justify-end">
                 <button
                   type="button"
-                  onClick={() => {
-                    setNewSnippetTrigger("my signature");
-                    setNewSnippetValue("Best regards,\n[Your Name]\nLead Developer");
-                  }}
-                  className="px-2.5 py-1 rounded-lg bg-[var(--raised)] hover:bg-[var(--raised-hover)] text-[11px] text-[var(--text-2)] hover:text-[#FF4D5E] border border-[var(--border)] transition-colors"
-                >
-                  + Signature
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNewSnippetTrigger("meeting notes");
-                    setNewSnippetValue("## Meeting Notes\n- **Attendees:** \n- **Key Takeaways:** \n- **Action Items:** \n  - [ ] ");
-                  }}
-                  className="px-2.5 py-1 rounded-lg bg-[var(--raised)] hover:bg-[var(--raised-hover)] text-[11px] text-[var(--text-2)] hover:text-[#FF4D5E] border border-[var(--border)] transition-colors"
-                >
-                  + Meeting Notes
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNewSnippetTrigger("insert disclaimer");
-                    setNewSnippetValue("CONFIDENTIALITY NOTICE: This transmission is intended only for the use of the individual or entity named above.");
-                  }}
-                  className="px-2.5 py-1 rounded-lg bg-[var(--raised)] hover:bg-[var(--raised-hover)] text-[11px] text-[var(--text-2)] hover:text-[#FF4D5E] border border-[var(--border)] transition-colors"
-                >
-                  + Disclaimer
-                </button>
-              </div>
-
-              <div className="pt-2 flex justify-end">
-                <button
                   onClick={addSnippet}
                   disabled={!newSnippetTrigger.trim() || !newSnippetValue.trim()}
-                  className="px-6 py-2.5 btn-blade rounded-xl text-xs font-semibold text-white disabled:opacity-40 flex items-center gap-2 shadow-md shadow-[#FF4D5E]/20"
+                  className="px-4 py-2 btn-primary text-[13px] font-medium disabled:opacity-40 flex items-center gap-1.5 cursor-pointer"
                 >
                   <Plus className="w-4 h-4" /> Save Voice Snippet
                 </button>
@@ -594,16 +559,13 @@ export const DictionaryView: React.FC = () => {
           <div className="space-y-3">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <h4 className="text-xs font-semibold text-[#FF4D5E] uppercase tracking-wider font-display">
+                <h4 className="text-[12px] font-medium text-[var(--accent)] uppercase tracking-wider font-mono">
                   Configured Snippets ({filteredSnippets.length})
                 </h4>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[var(--raised)] border border-[var(--border)] text-[var(--text-2)]">
-                  {filteredSnippets.length} Total Snippets
-                </span>
               </div>
 
               {/* Rows Per Page Selector */}
-              <div className="flex items-center gap-2 text-xs text-[var(--text-3)]">
+              <div className="flex items-center gap-2 text-[12px] text-[var(--text-secondary)] font-mono">
                 <span>Show:</span>
                 <select
                   value={snippetsPerPage}
@@ -611,49 +573,51 @@ export const DictionaryView: React.FC = () => {
                     setSnippetsPerPage(Number(e.target.value));
                     setSnippetPage(1);
                   }}
-                  className="px-2.5 py-1 bg-[var(--raised)] border border-[var(--border)] rounded-lg text-xs text-[var(--text-1)] font-mono focus:outline-none focus:border-[#FF4D5E]"
+                  className="px-2 py-0.5 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-[6px] text-[12px] text-[var(--text-primary)] font-mono focus:outline-none focus:border-[var(--accent)]"
                 >
                   <option value={4}>4 items</option>
                   <option value={6}>6 items</option>
                   <option value={12}>12 items</option>
                   <option value={24}>24 items</option>
                 </select>
-                <span className="text-[var(--text-3)] font-mono ml-2">
+                <span className="text-[var(--text-muted)] font-mono ml-2">
                   Page {activeSnippetPage} of {totalSnippetPages}
                 </span>
               </div>
             </div>
 
             {filteredSnippets.length === 0 ? (
-              <div className="forge-card p-8 text-center text-[var(--text-3)] text-xs rounded-xl border border-[var(--border)] bg-[var(--panel)]">
-                No voice snippets configured yet. Add your first prompt or signature shortcut above!
+              <div className="forge-card p-8 text-center text-[var(--text-muted)] text-[13px] rounded-[8px] border border-[var(--border)] bg-[var(--surface-primary)]">
+                No voice snippets configured yet. Add your first prompt or signature shortcut above.
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
                 {paginatedSnippets.map(([trigger, value]) => (
                   <div
                     key={trigger}
-                    className="forge-card p-4 rounded-xl border border-[var(--border)] hover:border-[#FF4D5E]/40 space-y-2.5 transition-all flex flex-col justify-between bg-[var(--panel)] shadow-sm"
+                    className="forge-card p-4 rounded-[8px] border border-[var(--border)] space-y-3 transition-all flex flex-col justify-between bg-[var(--surface-primary)]"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="px-2.5 py-1 rounded-lg bg-[#FF4D5E]/12 border border-[#FF4D5E]/30 text-xs font-bold text-[#FF4D5E] font-mono">
+                      <span className="px-2 py-0.5 rounded-[4px] bg-[var(--accent-subtle)] border border-[var(--accent-border)] text-[12px] font-medium text-[var(--accent)] font-mono">
                         &quot;{trigger}&quot;
                       </span>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1">
                         <button
+                          type="button"
                           onClick={() => copyText(value, trigger)}
-                          className="p-1.5 rounded-lg bg-[var(--raised)] hover:bg-[var(--raised-hover)] text-[var(--text-2)] hover:text-[var(--text-1)] border border-[var(--border)] transition-colors"
+                          className="p-1 rounded-[5px] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)] transition-colors cursor-pointer"
                           title="Copy snippet text"
                         >
                           {copiedKey === trigger ? (
-                            <Check className="w-3.5 h-3.5 text-teal-600 dark:text-[#3FE3C4]" />
+                            <Check className="w-3.5 h-3.5 text-[var(--success)]" />
                           ) : (
                             <Copy className="w-3.5 h-3.5" />
                           )}
                         </button>
                         <button
+                          type="button"
                           onClick={() => removeSnippet(trigger)}
-                          className="p-1.5 rounded-lg bg-[var(--raised)] hover:bg-[#FF4D5E]/20 text-[var(--text-3)] hover:text-[#FF4D5E] border border-[var(--border)] transition-colors"
+                          className="p-1 rounded-[5px] hover:bg-[var(--surface-hover)] text-[var(--text-muted)] hover:text-[var(--error)] transition-colors cursor-pointer"
                           title="Delete snippet"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -661,7 +625,7 @@ export const DictionaryView: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="p-2.5 bg-[var(--raised)] rounded-lg border border-[var(--border)] text-xs font-mono text-[var(--text-1)] whitespace-pre-wrap max-h-32 overflow-y-auto leading-relaxed">
+                    <div className="bg-[var(--surface-elevated)] p-2.5 rounded-[6px] border border-[var(--border-subtle)] text-[12px] text-[var(--text-primary)] font-mono whitespace-pre-wrap max-h-32 overflow-y-auto leading-relaxed">
                       {value}
                     </div>
                   </div>
@@ -669,32 +633,33 @@ export const DictionaryView: React.FC = () => {
               </div>
             )}
 
-            {/* Smart Snippet Pagination Controls */}
+            {/* Smart Sliding Window Pagination for Snippets */}
             {totalSnippetPages > 1 && (
-              <div className="p-3.5 bg-[var(--raised)]/40 border border-[var(--border)] rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-                <span className="text-[var(--text-2)] font-mono text-center sm:text-left">
-                  Showing <strong className="text-[var(--text-1)]">{startSnippetIdx + 1}</strong> to{" "}
-                  <strong className="text-[var(--text-1)]">
+              <div className="p-3 bg-[var(--surface-elevated)] border border-[var(--border-subtle)] rounded-[8px] flex flex-col sm:flex-row items-center justify-between gap-3 text-[12px]">
+                <span className="text-[var(--text-secondary)] font-mono text-center sm:text-left">
+                  Showing <strong className="text-[var(--text-primary)]">{startSnippetIdx + 1}</strong> to{" "}
+                  <strong className="text-[var(--text-primary)]">
                     {Math.min(startSnippetIdx + snippetsPerPage, filteredSnippets.length)}
                   </strong>{" "}
-                  of <strong className="text-[var(--text-1)]">{filteredSnippets.length}</strong> snippets
+                  of <strong className="text-[var(--text-primary)]">{filteredSnippets.length}</strong> snippets
                 </span>
 
-                <div className="flex items-center gap-1.5 flex-wrap justify-center">
+                <div className="flex items-center gap-1 flex-wrap justify-center font-mono">
                   <button
+                    type="button"
                     onClick={() => setSnippetPage((p) => Math.max(1, p - 1))}
                     disabled={activeSnippetPage === 1}
-                    className="p-1.5 rounded-lg bg-[var(--raised)] hover:bg-[var(--raised-hover)] text-[var(--text-2)] hover:text-[var(--text-1)] border border-[var(--border)] disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                    className="p-1 rounded-[5px] bg-[var(--surface-primary)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)] disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
                   >
-                    <ChevronLeft className="w-4 h-4" />
+                    <ChevronLeft className="w-3.5 h-3.5" />
                   </button>
 
                   {snippetPaginationRange.map((item, i) => {
                     if (item === "...") {
                       return (
                         <span
-                          key={`dots-snip-${i}`}
-                          className="px-2 py-1 text-xs font-mono text-[var(--text-3)]"
+                          key={`dots-s-${i}`}
+                          className="px-1 text-[11px] font-mono text-[var(--text-muted)]"
                         >
                           •••
                         </span>
@@ -703,12 +668,13 @@ export const DictionaryView: React.FC = () => {
                     const pageNum = Number(item);
                     return (
                       <button
-                        key={pageNum}
+                        type="button"
+                        key={`page-s-${pageNum}`}
                         onClick={() => setSnippetPage(pageNum)}
-                        className={`w-7 h-7 rounded-lg text-xs font-mono font-semibold transition-all ${
+                        className={`min-w-[24px] h-6 px-1.5 rounded-[5px] text-[11px] font-medium transition-all cursor-pointer ${
                           activeSnippetPage === pageNum
-                            ? "bg-[#FF4D5E] text-white shadow-sm"
-                            : "bg-[var(--raised)] hover:bg-[var(--raised-hover)] text-[var(--text-2)] hover:text-[var(--text-1)] border border-[var(--border)]"
+                            ? "bg-[var(--accent-subtle)] text-[var(--accent)] border border-[var(--accent-border)] font-semibold"
+                            : "bg-[var(--surface-primary)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)]"
                         }`}
                       >
                         {pageNum}
@@ -717,120 +683,52 @@ export const DictionaryView: React.FC = () => {
                   })}
 
                   <button
+                    type="button"
                     onClick={() => setSnippetPage((p) => Math.min(totalSnippetPages, p + 1))}
                     disabled={activeSnippetPage === totalSnippetPages}
-                    className="p-1.5 rounded-lg bg-[var(--raised)] hover:bg-[var(--raised-hover)] text-[var(--text-2)] hover:text-[var(--text-1)] border border-[var(--border)] disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                    className="p-1 rounded-[5px] bg-[var(--surface-primary)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)] disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
                   >
-                    <ChevronRight className="w-4 h-4" />
+                    <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
             )}
           </div>
+
+          {/* Live Sandbox Tester */}
+          <div className="forge-card p-4 space-y-2.5 rounded-[8px] border border-[var(--border)] bg-[var(--surface-primary)]">
+            <div className="flex items-center justify-between">
+              <h4 className="text-[12px] font-medium text-[var(--accent)] uppercase tracking-wider font-mono flex items-center gap-1.5">
+                <Code2 className="w-4 h-4" /> Live Voice Expansion Sandbox Tester
+              </h4>
+              <span className="text-[11px] text-[var(--text-muted)] font-mono">Simulation</span>
+            </div>
+            <p className="text-[13px] text-[var(--text-secondary)]">
+              Type or speak any trigger phrase like <code className="text-[var(--accent)] font-mono">&quot;my signature&quot;</code> to test the expansion output below.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <div>
+                <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-mono">Test Input Text</label>
+                <textarea
+                  rows={3}
+                  value={testInput}
+                  onChange={(e) => setTestInput(e.target.value)}
+                  placeholder="e.g. Please check this update, my signature"
+                  className="w-full px-3 py-2 bg-[var(--surface-primary)] border border-[var(--border)] rounded-[7px] text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] font-mono resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-mono">Live Expanded Output</label>
+                <div className="w-full h-[74px] px-3 py-2 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-[7px] text-[13px] text-[var(--accent)] font-mono overflow-y-auto whitespace-pre-wrap font-medium">
+                  {testOutput || <span className="text-[var(--text-muted)] italic font-normal text-[12px]">Expanded output appears here in real-time...</span>}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
-
-      {/* How Word Mapping Works in Practice Guide */}
-      <div className="forge-card p-5 space-y-4 rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-sm">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-[#FF4D5E]" />
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-1)] font-display">
-              How Word Mapping & Voice Processing Works in Practice
-            </h3>
-          </div>
-          <span className="text-[10px] font-mono font-bold text-teal-600 dark:text-[#3FE3C4] bg-teal-500/10 px-2 py-0.5 rounded-lg border border-teal-500/20">
-            Intelligent Pipeline
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-          {/* Card 1: Filler Removal */}
-          <div className="p-3.5 rounded-xl bg-[var(--raised)] border border-[var(--border)] space-y-1.5 flex flex-col justify-between">
-            <div className="space-y-1">
-              <div className="flex items-center gap-1.5 font-semibold text-[#FF4D5E]">
-                <Scissors className="w-3.5 h-3.5 shrink-0" />
-                <span>Filler Removal</span>
-              </div>
-              <p className="text-[11px] text-[var(--text-2)] leading-relaxed">
-                Spoken pauses and verbal crutches like <code className="text-[#FF4D5E]">&quot;um&quot;</code> or <code className="text-[#FF4D5E]">&quot;ah&quot;</code> are automatically deleted before text lands in your app.
-              </p>
-            </div>
-          </div>
-
-          {/* Card 2: Real-Time Self-Correction */}
-          <div className="p-3.5 rounded-xl bg-[var(--raised)] border border-[var(--border)] space-y-1.5 flex flex-col justify-between">
-            <div className="space-y-1">
-              <div className="flex items-center gap-1.5 font-semibold text-amber-600 dark:text-amber-400">
-                <RotateCcw className="w-3.5 h-3.5 shrink-0" />
-                <span>Real-Time Self-Correction</span>
-              </div>
-              <p className="text-[11px] text-[var(--text-2)] leading-relaxed">
-                If you say <span className="text-[var(--text-1)] italic">&quot;meet at 5 PM, no actually 6 PM,&quot;</span> the mapping engine processes the intent and outputs <strong className="text-[var(--text-1)]">&quot;6 PM&quot;</strong>.
-              </p>
-            </div>
-          </div>
-
-          {/* Card 3: Contextual Formatting */}
-          <div className="p-3.5 rounded-xl bg-[var(--raised)] border border-[var(--border)] space-y-1.5 flex flex-col justify-between">
-            <div className="space-y-1">
-              <div className="flex items-center gap-1.5 font-semibold text-teal-600 dark:text-[#3FE3C4]">
-                <ListOrdered className="w-3.5 h-3.5 shrink-0" />
-                <span>Contextual Formatting</span>
-              </div>
-              <p className="text-[11px] text-[var(--text-2)] leading-relaxed">
-                Spoken lists or outlines transform directly into clean bullet points or numbered structures without manual hotkeys.
-              </p>
-            </div>
-          </div>
-
-          {/* Card 4: Adaptive Dictionary */}
-          <div className="p-3.5 rounded-xl bg-[var(--raised)] border border-[var(--border)] space-y-1.5 flex flex-col justify-between">
-            <div className="space-y-1">
-              <div className="flex items-center gap-1.5 font-semibold text-blue-600 dark:text-cyan-400">
-                <Brain className="w-3.5 h-3.5 shrink-0" />
-                <span>Adaptive Dictionary</span>
-              </div>
-              <p className="text-[11px] text-[var(--text-2)] leading-relaxed">
-                Custom vocabulary and unconventional names are learned and remembered automatically after your first manual correction.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Live Sandbox Tester */}
-      <div className="forge-card p-5 space-y-3 rounded-xl border border-[var(--border)] bg-[var(--panel)] shadow-sm">
-        <div className="flex items-center justify-between">
-          <h4 className="text-xs font-semibold text-teal-600 dark:text-[#3FE3C4] uppercase tracking-wider font-display flex items-center gap-2">
-            <Code2 className="w-4 h-4" /> Live Voice Expansion Sandbox Tester
-          </h4>
-          <span className="text-[10px] text-[var(--text-3)] font-mono">Simulate real-time transcription</span>
-        </div>
-        <p className="text-xs text-[var(--text-2)]">
-          Type or speak any trigger phrase like <code className="text-[#FF4D5E]">&quot;my signature&quot;</code> or <code className="text-teal-600 dark:text-[#3FE3C4]">&quot;lang chain&quot;</code> to test the expansion output below.
-        </p>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-          <div>
-            <label className="text-[11px] text-[var(--text-3)] block mb-1 font-mono">Test Input Text</label>
-            <textarea
-              rows={3}
-              value={testInput}
-              onChange={(e) => setTestInput(e.target.value)}
-              placeholder="e.g. Please check this update, my signature"
-              className="w-full px-3 py-2 bg-[var(--raised)] border border-[var(--border)] rounded-xl text-xs text-[var(--text-1)] placeholder:text-[var(--text-3)] focus:outline-none focus:border-[#FF4D5E] font-mono resize-none"
-            />
-          </div>
-
-          <div>
-            <label className="text-[11px] text-[var(--text-3)] block mb-1 font-mono">Live Expanded Output</label>
-            <div className="w-full h-[74px] px-3 py-2 bg-[var(--raised)] border border-[var(--border)] rounded-xl text-xs text-teal-700 dark:text-[#3FE3C4] font-mono overflow-y-auto whitespace-pre-wrap font-semibold">
-              {testOutput || <span className="text-[var(--text-3)] italic font-normal">Expanded output appears here...</span>}
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

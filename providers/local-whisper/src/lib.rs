@@ -6,11 +6,19 @@ use forge_transcription::{
 };
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs::{create_dir_all, remove_file, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use tokio::sync::Mutex;
+use std::sync::{Arc, Mutex};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelDownloadProgress {
+    pub model_id: String,
+    pub downloaded_bytes: u64,
+    pub total_bytes: u64,
+    pub percentage: u32,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LocalModelInfo {
@@ -32,8 +40,10 @@ pub struct HardwareRecommendation {
     pub reason: String,
 }
 
+#[derive(Clone)]
 pub struct ModelManager {
     models_dir: PathBuf,
+    active_downloads: Arc<Mutex<HashMap<String, ModelDownloadProgress>>>,
 }
 
 impl ModelManager {
@@ -42,7 +52,14 @@ impl ModelManager {
         if !models_dir.exists() {
             let _ = create_dir_all(&models_dir);
         }
-        Self { models_dir }
+        Self {
+            models_dir,
+            active_downloads: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
+    pub fn get_active_downloads(&self) -> HashMap<String, ModelDownloadProgress> {
+        self.active_downloads.lock().unwrap().clone()
     }
 
     fn resolve_models_dir() -> PathBuf {
@@ -93,8 +110,9 @@ impl ModelManager {
 
         for path in candidates {
             if path.exists() {
-                if let Ok(meta) = path.metadata() {
-                    if meta.len() > 1000 {
+                // Ensure the file is not a partial 0-byte download and has valid binary payload (>1MB)
+                if let Ok(metadata) = std::fs::metadata(&path) {
+                    if metadata.len() > 1024 * 1024 {
                         return Some(path);
                     }
                 }
@@ -205,6 +223,17 @@ impl ModelManager {
     }
 
     pub async fn download_model(&self, model_id: &str) -> Result<PathBuf, ProviderError> {
+        self.download_model_with_progress(model_id, |_, _| {}).await
+    }
+
+    pub async fn download_model_with_progress<F>(
+        &self,
+        model_id: &str,
+        mut progress: F,
+    ) -> Result<PathBuf, ProviderError>
+    where
+        F: FnMut(u64, u64) + Send + 'static,
+    {
         let models = self.list_available_models();
         let target = models
             .into_iter()
@@ -212,8 +241,9 @@ impl ModelManager {
             .ok_or_else(|| ProviderError::ModelError(format!("Model ID '{}' not recognized", model_id)))?;
 
         let dest_path = self.models_dir.join(&target.filename);
+        let part_path = self.models_dir.join(format!("{}.part", target.filename));
         let client = Client::new();
-        let response = client
+        let mut response = client
             .get(&target.download_url)
             .send()
             .await
@@ -226,15 +256,79 @@ impl ModelManager {
             )));
         }
 
-        let bytes = response
-            .bytes()
-            .await
-            .map_err(|e| ProviderError::NetworkError(e.to_string()))?;
+        let total_size = response
+            .content_length()
+            .unwrap_or(target.size_mb * 1024 * 1024);
 
-        let mut file = File::create(&dest_path)
+        let mut downloaded: u64 = 0;
+        let mut file = File::create(&part_path)
             .map_err(|e| ProviderError::ModelError(e.to_string()))?;
-        file.write_all(&bytes)
-            .map_err(|e| ProviderError::ModelError(e.to_string()))?;
+
+        // Initialize active download status
+        {
+            let mut guard = self.active_downloads.lock().unwrap();
+            guard.insert(
+                model_id.to_string(),
+                ModelDownloadProgress {
+                    model_id: model_id.to_string(),
+                    downloaded_bytes: 0,
+                    total_bytes: total_size,
+                    percentage: 0,
+                },
+            );
+        }
+
+        while let Some(chunk) = response
+            .chunk()
+            .await
+            .map_err(|e| {
+                let _ = self.active_downloads.lock().unwrap().remove(model_id);
+                let _ = remove_file(&part_path);
+                ProviderError::NetworkError(e.to_string())
+            })?
+        {
+            if let Err(e) = file.write_all(&chunk) {
+                let _ = self.active_downloads.lock().unwrap().remove(model_id);
+                let _ = remove_file(&part_path);
+                return Err(ProviderError::ModelError(e.to_string()));
+            }
+            downloaded += chunk.len() as u64;
+            let percentage = if total_size > 0 {
+                ((downloaded as f64 / total_size as f64) * 100.0).round() as u32
+            } else {
+                0
+            };
+
+            // Update in-memory active download state
+            {
+                let mut guard = self.active_downloads.lock().unwrap();
+                if let Some(item) = guard.get_mut(model_id) {
+                    item.downloaded_bytes = downloaded;
+                    item.percentage = percentage;
+                }
+            }
+
+            progress(downloaded, total_size);
+        }
+
+        if let Err(e) = file.flush() {
+            let _ = self.active_downloads.lock().unwrap().remove(model_id);
+            let _ = remove_file(&part_path);
+            return Err(ProviderError::ModelError(e.to_string()));
+        }
+
+        // Atomically rename .part -> final .bin
+        if let Err(e) = std::fs::rename(&part_path, &dest_path) {
+            let _ = self.active_downloads.lock().unwrap().remove(model_id);
+            let _ = remove_file(&part_path);
+            return Err(ProviderError::ModelError(e.to_string()));
+        }
+
+        // Cleanup active download
+        {
+            let mut guard = self.active_downloads.lock().unwrap();
+            guard.remove(model_id);
+        }
 
         Ok(dest_path)
     }
@@ -255,6 +349,50 @@ impl ModelManager {
     }
 }
 
+#[cfg(windows)]
+fn get_system_ram_gb() -> u32 {
+    #[repr(C)]
+    struct MemoryStatusEx {
+        dw_length: u32,
+        dw_memory_load: u32,
+        ull_total_phys: u64,
+        ull_avail_phys: u64,
+        ull_total_page_file: u64,
+        ull_avail_page_file: u64,
+        ull_total_virtual: u64,
+        ull_avail_virtual: u64,
+        ull_avail_extended_virtual: u64,
+    }
+
+    extern "system" {
+        fn GlobalMemoryStatusEx(lp_buffer: *mut MemoryStatusEx) -> i32;
+    }
+
+    let mut mem = MemoryStatusEx {
+        dw_length: std::mem::size_of::<MemoryStatusEx>() as u32,
+        dw_memory_load: 0,
+        ull_total_phys: 0,
+        ull_avail_phys: 0,
+        ull_total_page_file: 0,
+        ull_avail_page_file: 0,
+        ull_total_virtual: 0,
+        ull_avail_virtual: 0,
+        ull_avail_extended_virtual: 0,
+    };
+
+    let success = unsafe { GlobalMemoryStatusEx(&mut mem) };
+    if success != 0 {
+        ((mem.ull_total_phys as f64) / (1024.0 * 1024.0 * 1024.0)).round() as u32
+    } else {
+        16
+    }
+}
+
+#[cfg(not(windows))]
+fn get_system_ram_gb() -> u32 {
+    16
+}
+
 pub struct HardwareDetector;
 
 impl HardwareDetector {
@@ -263,20 +401,39 @@ impl HardwareDetector {
             .map(|p| p.get())
             .unwrap_or(4);
 
-        // Approximate RAM heuristic
-        let (ram_gb, rec_model, reason) = if logical_cores <= 4 {
-            (8, "base", "4 or fewer CPU cores detected; Whisper Base recommended for smooth latency.")
-        } else if logical_cores <= 8 {
-            (16, "small", "8 CPU cores detected; Whisper Small recommended for high accuracy and balanced speed.")
+        let ram_gb = get_system_ram_gb();
+
+        let (rec_model, reason) = if ram_gb >= 16 && logical_cores >= 8 {
+            (
+                "large-v3-turbo",
+                format!(
+                    "High-performance hardware detected ({} cores, {} GB RAM); Whisper Large v3 Turbo recommended.",
+                    logical_cores, ram_gb
+                ),
+            )
+        } else if ram_gb >= 8 && logical_cores >= 4 {
+            (
+                "small",
+                format!(
+                    "Balanced hardware detected ({} cores, {} GB RAM); Whisper Small recommended for balanced latency and high accuracy.",
+                    logical_cores, ram_gb
+                ),
+            )
         } else {
-            (32, "large-v3-turbo", "High-performance multi-core CPU detected; Whisper Large v3 Turbo recommended.")
+            (
+                "base",
+                format!(
+                    "Standard hardware detected ({} cores, {} GB RAM); Whisper Base recommended for smooth latency.",
+                    logical_cores, ram_gb
+                ),
+            )
         };
 
         HardwareRecommendation {
             logical_cores,
             estimated_ram_gb: ram_gb,
             recommended_model_id: rec_model.to_string(),
-            reason: reason.to_string(),
+            reason,
         }
     }
 }
@@ -294,8 +451,8 @@ impl LocalWhisperProvider {
         }
     }
 
-    pub async fn set_active_model(&self, model_id: &str) {
-        let mut active = self.active_model_id.lock().await;
+    pub fn set_active_model(&self, model_id: &str) {
+        let mut active = self.active_model_id.lock().unwrap();
         *active = model_id.to_string();
     }
 }
@@ -365,9 +522,9 @@ impl TranscriptionProvider for LocalWhisperProvider {
             // Auto-picked already installed model
             auto_picked.id
         } else {
-            return Err(ProviderError::ModelError(format!(
-                "No offline Whisper model found. Please download a model from Model Manager (e.g. Whisper Base or Tiny) or place ggml-*.bin in the models folder.",
-            )));
+            return Err(ProviderError::ModelError(
+                "No offline Whisper model found. Please download a model from Model Manager (e.g. Whisper Base or Tiny) or place ggml-*.bin in the models folder.".to_string(),
+            ));
         };
 
         Ok(Transcript {

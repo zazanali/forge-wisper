@@ -12,6 +12,9 @@ import {
   HardDrive,
   Cpu,
   AlertCircle,
+  Check,
+  Sparkles,
+  ShieldCheck,
 } from "lucide-react";
 
 export const ModelManagerView: React.FC = () => {
@@ -19,10 +22,40 @@ export const ModelManagerView: React.FC = () => {
   const [rec, setRec] = useState<HardwareRecommendation | null>(null);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<
+    Record<string, { downloaded: number; total: number; percentage: number }>
+  >({});
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     loadModels();
+
+    const unlisten = api.onModelDownloadProgress((payload) => {
+      setDownloadProgress((prev) => ({
+        ...prev,
+        [payload.model_id]: {
+          downloaded: payload.downloaded_bytes,
+          total: payload.total_bytes,
+          percentage: payload.percentage,
+        },
+      }));
+
+      // When download finishes, remove from progress tracker and refresh models list
+      if (payload.percentage >= 100) {
+        setTimeout(() => {
+          setDownloadProgress((prev) => {
+            const copy = { ...prev };
+            delete copy[payload.model_id];
+            return copy;
+          });
+          loadModels();
+        }, 500);
+      }
+    });
+
+    return () => {
+      unlisten.then((fn) => fn());
+    };
   }, []);
 
   const loadModels = async () => {
@@ -33,6 +66,22 @@ export const ModelManagerView: React.FC = () => {
       setRec(r);
       const s = await api.getSettings();
       setSettings(s);
+
+      // Check active backend downloads to restore progress if user navigated away and returned
+      const activeDownloads = await api.getActiveModelDownloads();
+      if (activeDownloads && Object.keys(activeDownloads).length > 0) {
+        setDownloadProgress((prev) => {
+          const updated = { ...prev };
+          for (const [mid, info] of Object.entries(activeDownloads)) {
+            updated[mid] = {
+              downloaded: info.downloaded_bytes,
+              total: info.total_bytes,
+              percentage: info.percentage,
+            };
+          }
+          return updated;
+        });
+      }
 
       // Auto-pick: If user is using local-whisper and active model is not downloaded, auto-select installed model
       if (s.provider === "local-whisper") {
@@ -101,46 +150,77 @@ export const ModelManagerView: React.FC = () => {
     }
   };
 
+  const getModelBadge = (id: string) => {
+    switch (id) {
+      case "tiny":
+        return { label: "Ultra Fast", color: "text-[var(--text-secondary)] bg-[var(--surface-elevated)] border-[var(--border)]" };
+      case "base":
+        return { label: "Everyday Dictation", color: "text-[var(--accent)] bg-[var(--accent-subtle)] border-[var(--accent-border)]" };
+      case "small":
+        return { label: "Optimal Balance", color: "text-[var(--accent)] bg-[var(--accent-subtle)] border-[var(--accent-border)]" };
+      case "medium":
+        return { label: "High Precision", color: "text-[var(--warning)] bg-[var(--warning-bg)] border-[var(--warning-border)]" };
+      case "large-v3-turbo":
+        return { label: "Turbo + Max Accuracy", color: "text-[var(--accent)] bg-[var(--accent-subtle)] border-[var(--accent-border)]" };
+      case "large-v3":
+        return { label: "Studio Precision", color: "text-[var(--text-primary)] bg-[var(--surface-elevated)] border-[var(--border)]" };
+      default:
+        return { label: "General", color: "text-[var(--text-secondary)] bg-[var(--surface-elevated)] border-[var(--border)]" };
+    }
+  };
+
   return (
-    <div className="space-y-6 animate-fadeIn font-sans w-full pb-12">
-      {/* Header */}
-      <div>
-        <h2 className="text-xl font-display font-bold text-[var(--text-1)]">
-          Local Whisper Models
-        </h2>
-        <p className="text-xs text-[var(--text-2)]">
-          Download and manage GGML/GGUF model binaries for 100% offline transcription.
-        </p>
+    <div className="space-y-5 animate-fadeIn font-sans w-full pb-12">
+      {/* Header with Privacy Badge */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-[18px] font-medium text-[var(--text-primary)] tracking-tight">
+            Local Whisper Models
+          </h2>
+          <p className="text-[13px] text-[var(--text-secondary)]">
+            Download and manage GGML model binaries for 100% offline transcription.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] bg-[var(--surface-elevated)] border border-[var(--border)] text-[12px] text-[var(--accent)] font-mono">
+          <ShieldCheck className="w-3.5 h-3.5 text-[var(--accent)]" />
+          <span>100% Offline & Private</span>
+        </div>
       </div>
 
       {errorMsg && (
-        <div className="p-3.5 bg-[#FF4D5E]/15 border border-[#FF4D5E]/30 rounded-xl text-xs text-[#FF4D5E] flex items-center gap-2">
+        <div className="p-3 bg-[var(--error-bg)] border border-[var(--error-border)] rounded-[7px] text-[13px] text-[var(--error)] flex items-center gap-2">
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span>{errorMsg}</span>
         </div>
       )}
 
-      {/* Hardware Detection Recommendation */}
+      {/* Hardware Detection Recommendation Banner */}
       {rec && (
-        <div className="forge-card p-4 bg-teal-500/10 border border-teal-500/30 rounded-xl flex items-start gap-4">
-          <div className="p-2.5 rounded-xl bg-teal-500/15 text-teal-600 dark:text-[#3FE3C4]">
-            <Cpu className="w-5 h-5" />
-          </div>
-          <div className="flex-1 space-y-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-bold uppercase tracking-wider text-teal-700 dark:text-[#3FE3C4] font-mono">
-                Hardware Detected
-              </span>
-              <span className="text-xs text-[var(--text-2)] font-mono">
-                ({rec.logical_cores} Cores • ~{rec.estimated_ram_gb} GB RAM)
-              </span>
+        <div className="forge-card p-4 bg-[var(--surface-primary)] border border-[var(--border)] rounded-[8px]">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-[6px] bg-[var(--surface-elevated)] text-[var(--accent)] shrink-0">
+                <Cpu className="w-4 h-4" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[12px] font-mono font-medium text-[var(--text-primary)]">
+                    Hardware Detected:
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded-[4px] bg-[var(--surface-elevated)] text-[11px] text-[var(--text-secondary)] font-mono border border-[var(--border)]">
+                    {rec.logical_cores} Cores • {rec.estimated_ram_gb} GB RAM
+                  </span>
+                </div>
+                <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed">
+                  {rec.reason}
+                </p>
+              </div>
             </div>
-            <p className="text-xs text-[var(--text-1)]">{rec.reason}</p>
-            <div className="pt-1">
-              <span className="text-xs text-[var(--text-2)]">
-                Recommended model:{" "}
-              </span>
-              <span className="text-xs font-bold text-[#FF4D5E] font-mono uppercase">
+
+            <div className="flex items-center gap-2 self-start md:self-center shrink-0 pl-9 md:pl-0">
+              <span className="text-[12px] text-[var(--text-muted)]">Recommended:</span>
+              <span className="px-2.5 py-1 rounded-[6px] bg-[var(--accent-subtle)] text-[var(--accent)] border border-[var(--accent-border)] text-[12px] font-mono font-medium">
                 Whisper {rec.recommended_model_id}
               </span>
             </div>
@@ -154,99 +234,142 @@ export const ModelManagerView: React.FC = () => {
           const isActive =
             settings?.provider === "local-whisper" &&
             settings?.model === model.id;
+          const isRecommended = rec?.recommended_model_id === model.id;
 
           return (
             <div
               key={model.id}
-              className={`forge-card p-4 space-y-3 rounded-xl transition-all bg-[var(--panel)] border ${
+              className={`forge-card p-4 space-y-3.5 rounded-[8px] transition-all bg-[var(--surface-primary)] border flex flex-col justify-between ${
                 isActive
-                  ? "border-[#3FE3C4] bg-teal-500/10 shadow-lg shadow-teal-500/10"
-                  : "border-[var(--border)] hover:border-[#FF4D5E]/30"
+                  ? "border-[var(--accent)]"
+                  : "border-[var(--border)] hover:border-[var(--border-subtle)]"
               }`}
             >
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-semibold text-sm text-[var(--text-1)] font-display">
-                      {model.name}
-                    </h4>
-                    {model.is_default && (
-                      <span className="px-2 py-0.5 rounded-md bg-[var(--raised)] text-[10px] text-[var(--text-2)] font-mono border border-[var(--border)]">
-                        Default
-                      </span>
-                    )}
+              {/* Card Top Header */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className="p-2 rounded-[6px] bg-[var(--surface-elevated)] text-[var(--accent)] shrink-0 mt-0.5">
+                    <Cpu className="w-4 h-4" />
                   </div>
-                  <span className="text-xs text-[var(--text-3)] font-mono">
-                    {model.filename}
-                  </span>
+                  <div className="space-y-0.5 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="font-medium text-[14px] text-[var(--text-primary)] tracking-tight">
+                        {model.name}
+                      </h4>
+                      {isRecommended && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] bg-[var(--accent-subtle)] text-[var(--accent)] border border-[var(--accent-border)] text-[10px] font-mono font-medium">
+                          <Sparkles className="w-2.5 h-2.5" />
+                          Recommended
+                        </span>
+                      )}
+                      {model.is_default && !isRecommended && (
+                        <span className="px-1.5 py-0.5 rounded-[4px] bg-[var(--surface-elevated)] text-[10px] text-[var(--text-secondary)] font-mono border border-[var(--border)]">
+                          Default
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[11px] text-[var(--text-muted)] font-mono block truncate">
+                      {model.filename}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="text-right">
-                  <span
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono font-bold ${
-                      model.is_installed
-                        ? "bg-teal-500/15 text-teal-700 dark:text-[#3FE3C4] border border-teal-500/30"
-                        : "bg-[var(--raised)] text-[var(--text-3)] border border-[var(--border)]"
-                    }`}
-                  >
-                    {model.is_installed ? "INSTALLED" : "NOT DOWNLOADED"}
-                  </span>
+                {/* Status Indicator */}
+                <div className="shrink-0">
+                  {model.is_installed ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] text-[10px] font-mono font-medium bg-[var(--success-bg)] text-[var(--success)] border border-[var(--success-border)]">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]" />
+                      INSTALLED
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] text-[10px] font-mono text-[var(--text-muted)] bg-[var(--surface-elevated)] border border-[var(--border)]">
+                      NOT DOWNLOADED
+                    </span>
+                  )}
                 </div>
               </div>
 
-              {/* Stats row */}
-              <div className="flex items-center gap-4 text-xs text-[var(--text-2)] font-mono bg-[var(--raised)] p-2.5 rounded-xl border border-[var(--border)]">
-                <div className="flex items-center gap-1.5">
-                  <HardDrive className="w-3.5 h-3.5 text-[var(--text-3)]" />
+              {/* Badges & Spec Chips */}
+              <div className="flex items-center gap-2 flex-wrap text-[12px] font-mono">
+                {(() => {
+                  const badge = getModelBadge(model.id);
+                  return (
+                    <span className={`px-2 py-0.5 rounded-[4px] border text-[11px] font-mono font-medium ${badge.color}`}>
+                      {badge.label}
+                    </span>
+                  );
+                })()}
+
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-[4px] bg-[var(--surface-elevated)] text-[var(--text-secondary)] border border-[var(--border)] text-[11px]">
+                  <HardDrive className="w-3 h-3 text-[var(--text-muted)]" />
                   <span>{model.size_mb} MB</span>
                 </div>
-                <span>•</span>
-                <div className="flex items-center gap-1.5">
-                  <Cpu className="w-3.5 h-3.5 text-[var(--text-3)]" />
+
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-[4px] bg-[var(--surface-elevated)] text-[var(--text-secondary)] border border-[var(--border)] text-[11px]">
+                  <Cpu className="w-3 h-3 text-[var(--text-muted)]" />
                   <span>~{model.ram_estimate_mb} MB RAM</span>
                 </div>
               </div>
 
-              {/* Actions */}
-              <div className="flex items-center justify-between pt-1">
-                {model.is_installed ? (
-                  <div className="flex items-center gap-2 w-full justify-between">
-                    <button
-                      onClick={() => setActiveModel(model.id)}
-                      className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
-                        isActive
-                          ? "bg-[#3FE3C4] text-[#0A0C10] shadow-md shadow-[#3FE3C4]/20"
-                          : "btn-outline text-[var(--text-1)]"
-                      }`}
-                    >
-                      {isActive ? "Active Model ✓" : "Select Model"}
-                    </button>
+              {/* Actions Footer */}
+              <div className="pt-2.5 border-t border-[var(--border-subtle)] flex items-center justify-between gap-3">
+                {Boolean(downloadProgress[model.id] || downloadingId === model.id) ? (
+                  <div className="w-full space-y-2 py-1">
+                    <div className="flex items-center justify-between text-[12px] font-mono">
+                      <span className="flex items-center gap-1.5 text-[var(--accent)] font-medium">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                        Downloading Binary...
+                      </span>
+                      <span className="text-[var(--text-secondary)]">
+                        {downloadProgress[model.id] && downloadProgress[model.id].total > 0
+                          ? `${(downloadProgress[model.id].downloaded / 1024 / 1024).toFixed(1)} / ${(downloadProgress[model.id].total / 1024 / 1024).toFixed(1)} MB (${downloadProgress[model.id].percentage}%)`
+                          : `Connecting (~${model.size_mb} MB)...`}
+                      </span>
+                    </div>
+
+                    <div className="w-full h-2 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-[var(--accent)] rounded-full transition-all duration-150 ease-out"
+                        style={{
+                          width: `${Math.max(downloadProgress[model.id]?.percentage || 0, 5)}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ) : model.is_installed ? (
+                  <div className="flex items-center justify-between gap-2 w-full">
+                    {isActive ? (
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] bg-[var(--accent-subtle)] border border-[var(--accent-border)] text-[var(--accent)] text-[12px] font-medium font-mono">
+                        <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                        <span>Active Engine</span>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setActiveModel(model.id)}
+                        className="px-3 py-1.5 rounded-[6px] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-primary)] text-[12px] font-medium transition-all cursor-pointer"
+                      >
+                        Use This Model
+                      </button>
+                    )}
 
                     <button
+                      type="button"
                       onClick={() => deleteModel(model.id)}
-                      className="p-2 rounded-xl hover:bg-[#FF4D5E]/20 text-[var(--text-3)] hover:text-[#FF4D5E] transition-colors"
-                      title="Delete local file"
+                      className="p-1.5 rounded-[6px] hover:bg-[var(--surface-hover)] text-[var(--text-muted)] hover:text-[var(--error)] transition-all cursor-pointer"
+                      title="Delete model binary to free disk space"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 ) : (
                   <button
+                    type="button"
                     onClick={() => downloadModel(model.id)}
-                    disabled={downloadingId === model.id}
-                    className="w-full py-2.5 btn-blade rounded-xl text-xs font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-2 shadow-md shadow-[#FF4D5E]/20"
+                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 btn-primary text-[13px] font-medium transition-all cursor-pointer"
                   >
-                    {downloadingId === model.id ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        Downloading (~{model.size_mb} MB)...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="w-3.5 h-3.5" />
-                        Download ({model.size_mb} MB)
-                      </>
-                    )}
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download Binary ({model.size_mb} MB)</span>
                   </button>
                 )}
               </div>
@@ -257,3 +380,4 @@ export const ModelManagerView: React.FC = () => {
     </div>
   );
 };
+

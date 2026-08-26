@@ -9,8 +9,8 @@
     <!-- Instant Zero-Delay Clean Paint on startup with System Theme support -->
     <style>
       html, body, #root {
-        background-color: #F3F5F9;
-        color: #0B0E14;
+        background-color: #F7F9F8;
+        color: #17201F;
         margin: 0;
         padding: 0;
         width: 100%;
@@ -20,8 +20,8 @@
       [data-theme="dark"] html,
       [data-theme="dark"] body,
       [data-theme="dark"] #root {
-        background-color: #0C0E14 !important;
-        color: #E8ECF2 !important;
+        background-color: #0C1112 !important;
+        color: #EEF2F1 !important;
       }
       @media (prefers-color-scheme: dark) {
         :root:not([data-theme="light"]) html,
@@ -30,29 +30,30 @@
         [data-theme="system"] html,
         [data-theme="system"] body,
         [data-theme="system"] #root {
-          background-color: #0C0E14 !important;
-          color: #E8ECF2 !important;
+          background-color: #0C1112 !important;
+          color: #EEF2F1 !important;
         }
+      }
+      html.recorder-window,
+      body.recorder-window,
+      body.recorder-window #root,
+      [data-theme="dark"] html.recorder-window,
+      [data-theme="dark"] body.recorder-window,
+      [data-theme="dark"] body.recorder-window #root {
+        background-color: transparent !important;
+        background: transparent !important;
       }
     </style>
 
-    <!-- Asynchronous Non-blocking Google Fonts with System Fallbacks -->
+    <!-- Google Fonts: Geist Sans, Geist Mono, and Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      rel="preload"
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700;800&display=swap"
-      as="style"
-      onload="this.onload=null;this.rel='stylesheet'"
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap"
     />
-    <noscript>
-      <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700;800&display=swap"
-        rel="stylesheet"
-      />
-    </noscript>
   </head>
-  <body class="bg-[var(--bg)] text-[var(--text-1)] font-sans antialiased overflow-hidden select-none">
+  <body class="bg-[var(--bg-app)] text-[var(--text-primary)] font-sans antialiased overflow-hidden select-none">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

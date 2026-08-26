@@ -431,11 +431,7 @@ impl RuleBasedCleaner {
                 // If token is an email address (contains @) or URL/domain, do NOT capitalize internally
                 if word.contains('@') || word.starts_with("http://") || word.starts_with("https://") || word.starts_with("www.") {
                     line_res.push_str(word);
-                    if word.ends_with('.') || word.ends_with('!') || word.ends_with('?') {
-                        capitalize_next = true;
-                    } else {
-                        capitalize_next = false;
-                    }
+                    capitalize_next = word.ends_with('.') || word.ends_with('!') || word.ends_with('?');
                     continue;
                 }
 

@@ -43,6 +43,7 @@
 
 - **⚡ Blazing Fast Cloud Transcription (Groq Whisper)**: Sub-second audio processing with `whisper-large-v3-turbo` powered by Groq LPUs. API keys are safely stored in your native OS Keyring.
 - **🔒 Private & Offline Local Whisper**: Run Whisper directly on your machine (whisper.cpp / GGUF models) without any audio or text ever leaving your device.
+- **🚀 Auto-Start on System Boot**: Automatically launches in the background into the Windows System Tray on startup, instantly ready for your global hotkey (`Ctrl + Space`).
 - **🧠 Intelligent Rule-Based Voice Cleaner**:
   - **Filler Removal**: Automatically purges verbal crutches like *"um"*, *"ah"*, *"like, you know"*.
   - **Real-Time Self-Correction**: Say *"meet at 5 PM, no actually 6 PM"* $\to$ outputs *"6 PM"*.
@@ -57,7 +58,7 @@
 - **📚 Searchable SQLite History**:
   - Search past dictations, copy raw or cleaned transcripts, and configure automated data retention policies (7 days, 30 days, or indefinite).
 - **🎨 Forge Modern Aesthetic**:
-  - Dark, Light, and System themes crafted with sleek typography, custom scrollbars, and fully responsive layouts across all window sizes.
+  - Precision dark and light modes with responsive typography, real-time reactive audio HUD, and clean minimal controls.
 
 ---
 
