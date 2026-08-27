@@ -54,7 +54,7 @@
   - **Live Testing Sandbox**: Built-in interactive sandbox to test expansions in real time.
 - **🛡️ Verification & Safe Auto-Paste**:
   - Cross-verifies entity integrity (dates, currencies, numbers) between raw and cleaned text to prevent dropped details.
-  - Simulates keyboard paste into whatever window currently has text focus, with automatic clipboard backup.
+  - Native OS simulated keyboard paste (fully optimized for Windows, macOS, and Linux) into whatever window currently has text focus, with automatic clipboard backup.
 - **📚 Searchable SQLite History**:
   - Search past dictations, copy raw or cleaned transcripts, and configure automated data retention policies (7 days, 30 days, or indefinite).
 - **🎨 Forge Modern Aesthetic**:

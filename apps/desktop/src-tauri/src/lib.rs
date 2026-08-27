@@ -163,11 +163,11 @@ pub fn run() {
         .expect("error while running Forge Wisper Tauri application");
 }
 
-pub fn set_autostart(enable: bool) -> Result<(), String> {
+pub fn set_autostart(_enable: bool) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         use std::process::Command;
-        if enable {
+        if _enable {
             if let Ok(exe_path) = std::env::current_exe() {
                 let exe_str = exe_path.to_string_lossy().to_string();
                 let status = Command::new("reg")

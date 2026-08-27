@@ -44,7 +44,7 @@ impl OutputEngine {
         #[cfg(target_os = "macos")]
         {
             let press_res = enigo.key(Key::Meta, Direction::Press);
-            let click_res = enigo.key(Key::V, Direction::Click);
+            let click_res = enigo.key(Key::Unicode('v'), Direction::Click);
             let release_res = enigo.key(Key::Meta, Direction::Release);
 
             press_res.map_err(|e| OutputError::SimulationError(e.to_string()))?;
@@ -52,10 +52,21 @@ impl OutputEngine {
             release_res.map_err(|e| OutputError::SimulationError(e.to_string()))?;
         }
 
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(target_os = "windows")]
         {
             let press_res = enigo.key(Key::Control, Direction::Press);
             let click_res = enigo.key(Key::V, Direction::Click);
+            let release_res = enigo.key(Key::Control, Direction::Release);
+
+            press_res.map_err(|e| OutputError::SimulationError(e.to_string()))?;
+            click_res.map_err(|e| OutputError::SimulationError(e.to_string()))?;
+            release_res.map_err(|e| OutputError::SimulationError(e.to_string()))?;
+        }
+
+        #[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
+        {
+            let press_res = enigo.key(Key::Control, Direction::Press);
+            let click_res = enigo.key(Key::Unicode('v'), Direction::Click);
             let release_res = enigo.key(Key::Control, Direction::Release);
 
             press_res.map_err(|e| OutputError::SimulationError(e.to_string()))?;
