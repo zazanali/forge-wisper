@@ -1048,7 +1048,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                     </span>
                   </div>
                   <p className="text-[13px] text-[var(--text-secondary)] mt-0.5">
-                    Universal, low-latency AI speech dictation & verbal formatting engine.
+                    Cross-platform, low-latency AI speech dictation engine for Windows & macOS.
                   </p>
                 </div>
               </div>

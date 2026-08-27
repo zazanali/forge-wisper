@@ -13,7 +13,7 @@
 [![React](https://img.shields.io/badge/React-19.0-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)](#)
+[![Platform: Windows & macOS](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS-blue?logo=apple&logoColor=white)](#-platform-support)
 
 </div>
 
@@ -21,10 +21,10 @@
 
 ## ⚡ What is Forge Wisper?
 
-**Forge Wisper** is a high-performance, privacy-first desktop application designed around a frictionless, instant dictation workflow. Whether you're drafting code documentation in VS Code, messaging on Slack/Discord, or writing emails, Forge Wisper captures your voice, removes spoken pauses, executes self-corrections, formats lists, and pastes clean text straight into your active application.
+**Forge Wisper** is a high-performance, cross-platform, privacy-first desktop application designed around a frictionless, instant dictation workflow. Whether you're on **Windows** or **macOS (Apple Silicon M1/M2/M3/M4 & Intel)**, Forge Wisper captures your voice with native audio drivers, removes spoken pauses, executes self-corrections, formats lists, and injects clean text directly into your active window.
 
 ```text
-[ Global Shortcut: Ctrl + Space ]
+[ Global Shortcut: Ctrl + Space (Win) / Cmd + Space (Mac) ]
                 ↓
     🎙️ Speak Naturally (with pauses, corrections, or list items)
                 ↓
@@ -39,11 +39,34 @@
 
 ---
 
+## 💻 Platform Support & Compatibility
+
+| Platform | Supported OS Versions | Architecture | Output Injection | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| **🪟 Windows** | Windows 10 (64-bit, v19041+) & Windows 11 | `x86_64` / ARM64 | `Ctrl + V` Virtual Key + Registry Auto-Start | ✅ Supported (`.exe` NSIS) |
+| **🍎 macOS** | macOS 12 (Monterey), 13 (Ventura), 14 (Sonoma), 15 (Sequoia)+ | `aarch64` (Apple Silicon M1-M4) & `x86_64` (Intel) | `Cmd + V` (`Meta + v`) Main-Thread CGEvent | ✅ Supported (`.dmg` / `.app`) |
+| **🐧 Linux** | Ubuntu 20.04+, Debian 11+, Fedora 36+, Arch Linux | `x86_64` | Native X11 / Wayland Paste Injection | 🚧 In Progress |
+
+---
+
+## ⚙️ System & Hardware Requirements
+
+| Requirement | ⚡ Cloud Mode (Groq Cloud) | 🔒 Offline Local Mode (Whisper.cpp) |
+| :--- | :--- | :--- |
+| **Memory (RAM)** | **512 MB minimum** (App uses ~100–250 MB) | **2 GB – 4 GB RAM** (Tiny/Base/Small models)<br>**8 GB+ RAM** (Large-v3 models) |
+| **Disk Space** | **~50 MB** for the desktop application | **~50 MB** + Model Weight:<br>• Base: ~140 MB<br>• Small: ~460 MB<br>• Medium/Turbo: ~1.5 GB<br>• Large-v3: ~3.1 GB |
+| **Processor (CPU/GPU)**| Any dual-core Intel, AMD, or Apple Silicon CPU | • **Windows/Linux**: Intel/AMD x86_64 with AVX2 support<br>• **macOS**: Apple Silicon (M1/M2/M3/M4) or Intel Core i5/i7 |
+| **Microphone** | Any built-in or USB microphone | Any built-in or USB microphone |
+| **Internet Connection**| Required for cloud speech transcription | **100% Offline** (Zero internet required) |
+
+---
+
 ## ✨ Key Features
 
-- **⚡ Blazing Fast Cloud Transcription (Groq Whisper)**: Sub-second audio processing with `whisper-large-v3-turbo` powered by Groq LPUs. API keys are safely stored in your native OS Keyring.
+- **⚡ Blazing Fast Cloud Transcription (Groq Whisper)**: Sub-second audio processing with `whisper-large-v3-turbo` powered by Groq LPUs. API keys are safely stored in your native OS Keyring (**Windows Credential Vault & macOS Keychain**).
 - **🔒 Private & Offline Local Whisper**: Run Whisper directly on your machine (whisper.cpp / GGUF models) without any audio or text ever leaving your device.
-- **🚀 Auto-Start on System Boot**: Automatically launches in the background into the Windows System Tray on startup, instantly ready for your global hotkey (`Ctrl + Space`).
+- **🍎 Native macOS Compatibility**: CoreAudio NaN-sanitized recording, Apple microphone permission integration (`Info.plist`), and universal binary packaging.
+- **🚀 Auto-Start on System Boot**: Automatically launches in the background on startup, instantly ready for your global hotkey.
 - **🧠 Intelligent Rule-Based Voice Cleaner**:
   - **Filler Removal**: Automatically purges verbal crutches like *"um"*, *"ah"*, *"like, you know"*.
   - **Real-Time Self-Correction**: Say *"meet at 5 PM, no actually 6 PM"* $\to$ outputs *"6 PM"*.
@@ -144,9 +167,14 @@ forge-wisper/
    pnpm tauri:dev
    ```
 
-4. **Build Production Installer / Executable**:
+4. **Build Production Installer / Packages**:
    ```bash
+   # Windows (Generates .exe NSIS installer)
    pnpm tauri:build
+
+   # macOS (Sets up universal targets & generates .dmg / .app bundle)
+   sh apps/macOS/setup.sh
+   pnpm build:macos
    ```
 
 ### Running Test Suite
@@ -187,7 +215,30 @@ Contributions are welcome! If you'd like to help improve Forge Wisper:
 - GitHub: [@zazanali](https://github.com/zazanali)
 - Repository: [Forge Wisper](https://github.com/zazanali/forge-wisper)
 
-*Crafted with ❤️ by Ali Zazan • Built for developers and creators worldwide.*
+---
+
+## 👥 Contributors
+
+Thank you to everyone who has helped build and improve **Forge Wisper**!
+
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/zazanali">
+        <img src="https://github.com/zazanali.png" width="70px;" alt="Ali Zazan" style="border-radius: 50%;" /><br />
+        <sub><b>Ali Zazan</b></sub>
+      </a><br />
+      <sub>Creator & Core Architecture</sub>
+    </td>
+    <td align="center">
+      <a href="https://github.com/zakir-dev">
+        <img src="https://github.com/zakir-dev.png" width="70px;" alt="Ihtisham Hussain" style="border-radius: 50%;" /><br />
+        <sub><b>Ihtisham Hussain</b></sub>
+      </a><br />
+      <sub>Native macOS Support & Packaging</sub>
+    </td>
+  </tr>
+</table>
 
 ---
 
