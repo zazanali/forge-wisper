@@ -207,6 +207,13 @@ impl AudioRecorder {
             raw_samples = vec![0.0f32; 1600]; // 100ms silence
         }
 
+        // Sanitize raw samples to prevent NaN panics during clamp operations (common on macOS CoreAudio)
+        for sample in raw_samples.iter_mut() {
+            if sample.is_nan() || sample.is_infinite() {
+                *sample = 0.0;
+            }
+        }
+
         // Convert multi-channel to mono if needed
         let mono_samples: Vec<f32> = if self.source_channels > 1 {
             raw_samples

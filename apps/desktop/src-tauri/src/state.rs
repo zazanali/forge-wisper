@@ -356,7 +356,20 @@ impl PipelineState {
         // 6. Safe Paste / Output
         if can_paste {
             self.set_state(&app, ProcessingState::Inserting, None);
-            match OutputEngine::paste_text(&cleaned.cleaned_text) {
+            #[cfg(target_os = "macos")]
+            let outcome_result = {
+                let (tx, rx) = tokio::sync::oneshot::channel();
+                let text_to_paste = cleaned.cleaned_text.clone();
+                let _ = app.run_on_main_thread(move || {
+                    let outcome = OutputEngine::paste_text(&text_to_paste);
+                    let _ = tx.send(outcome);
+                });
+                rx.await.unwrap_or(Err(forge_output::OutputError::SimulationError("Failed to execute paste on main thread".to_string())))
+            };
+            #[cfg(not(target_os = "macos"))]
+            let outcome_result = OutputEngine::paste_text(&cleaned.cleaned_text);
+
+            match outcome_result {
                 Ok(outcome) => {
                     self.set_state(&app, ProcessingState::Success, None);
                     if outcome == PasteOutcome::CopiedToClipboardFallback {
