@@ -231,8 +231,8 @@ Thank you to everyone who has helped build and improve **Forge Wisper**!
       <sub>Creator & Core Architecture</sub>
     </td>
     <td align="center">
-      <a href="https://github.com/zakir-dev">
-        <img src="https://github.com/zakir-dev.png" width="70px;" alt="Ihtisham Hussain" style="border-radius: 50%;" /><br />
+      <a href="https://github.com/ihtisham-code">
+        <img src="https://github.com/ihtisham-code.png" width="70px;" alt="Ihtisham Hussain" style="border-radius: 50%;" /><br />
         <sub><b>Ihtisham Hussain</b></sub>
       </a><br />
       <sub>Native macOS Support & Packaging</sub>
