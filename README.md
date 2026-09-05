@@ -8,16 +8,12 @@
 
 *Speak naturally. Release. Receive clean, formatted, verified text directly at your cursor in real time.*
 
-[![Total Downloads](https://img.shields.io/github/downloads/zazanali/forge-wisper/total?logo=github&label=Total%20Downloads&color=success)](https://github.com/zazanali/forge-wisper/releases)
-[![Latest Release](https://img.shields.io/github/v/release/zazanali/forge-wisper?logo=github&label=Latest%20Release&color=orange)](https://github.com/zazanali/forge-wisper/releases/latest)
-[![Latest Release Downloads](https://img.shields.io/github/downloads/zazanali/forge-wisper/latest/total?logo=github&label=Latest%20Downloads&color=blue)](https://github.com/zazanali/forge-wisper/releases/latest)
-[![Platform: Windows & macOS](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS-blue?logo=apple&logoColor=white)](#-platform-support--compatibility)
-
 [![Rust](https://img.shields.io/badge/Rust-2021_Edition-orange?logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![Tauri v2](https://img.shields.io/badge/Tauri-v2.0-24C8D8?logo=tauri&logoColor=white)](https://tauri.app/)
 [![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Platform: Windows & macOS](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS-blue?logo=apple&logoColor=white)](#-platform-support--compatibility)
 [![GitHub Stars](https://img.shields.io/github/stars/zazanali/forge-wisper?style=social)](https://github.com/zazanali/forge-wisper)
 
 </div>
