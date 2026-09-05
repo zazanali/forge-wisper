@@ -20,18 +20,15 @@
 
 ---
 
-## 📥 Downloads & Real-Time Release Stats
+## 📥 Downloads & Installation
 
-Download the latest production release of **Forge Wisper** for your operating system:
+Get the latest official release for your operating system from the **[GitHub Releases Page](https://github.com/zazanali/forge-wisper/releases/latest)**:
 
-| Platform | Installer Type | Architecture | Live Download Counter | Direct Download Link |
-| :--- | :--- | :--- | :--- | :--- |
-| **🪟 Windows** | `.exe` (NSIS Installer) | `x86_64` (Intel/AMD) / ARM64 | [![Windows Downloads](https://img.shields.io/github/downloads/zazanali/forge-wisper/latest/Forge.Wisper_0.1.2_x64-setup.exe?displayAssetName=false&label=Windows%20Downloads&logo=windows&logoColor=white&color=0078D6)](https://github.com/zazanali/forge-wisper/releases/latest) | [**Download for Windows (.exe)**](https://github.com/zazanali/forge-wisper/releases/latest) |
-| **🍎 macOS** | `.dmg` / `.app` Bundle | Apple Silicon (`aarch64` M1–M4) & Intel (`x86_64`) | [![macOS Downloads](https://img.shields.io/github/downloads/zazanali/forge-wisper/latest/Forge.Wisper_0.1.2_aarch64.dmg?displayAssetName=false&label=macOS%20Downloads&logo=apple&logoColor=white&color=333333)](https://github.com/zazanali/forge-wisper/releases/latest) | [**Download for macOS (.dmg)**](https://github.com/zazanali/forge-wisper/releases/latest) |
-| **🐧 Linux** | `.deb` / `.AppImage` | `x86_64` | 🚧 *In Progress* | [**View Release Notes**](https://github.com/zazanali/forge-wisper/releases) |
-
-> [!TIP]
-> All download counters above update **in real time** directly from GitHub Releases API via Shields.io.
+| Platform | Package Format | Architecture | Compatibility |
+| :--- | :--- | :--- | :--- |
+| **🪟 Windows** | `.exe` (NSIS Installer) | `x86_64` (Intel/AMD) / ARM64 | Windows 10 (64-bit) & Windows 11 |
+| **🍎 macOS** | `.dmg` / `.app` Bundle | Apple Silicon (`aarch64` M1–M4) & Intel (`x86_64`) | macOS 12 (Monterey) to macOS 15 (Sequoia)+ |
+| **🐧 Linux** | `.deb` / `.AppImage` | `x86_64` | 🚧 *In Progress* |
 
 ---
 
