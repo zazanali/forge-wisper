@@ -131,18 +131,21 @@ impl TranscriptionProvider for GroqTranscriptionProvider {
         let mut form = Form::new()
             .part("file", part)
             .text("model", model.clone())
-            .text("response_format", "verbose_json");
+            .text("response_format", "json");
 
         if let Some(lang) = options.language {
-            if lang != "auto" {
-                form = form.text("language", lang);
+            let lang_clean = lang.trim();
+            if lang_clean != "auto" && !lang_clean.is_empty() {
+                form = form.text("language", lang_clean.to_string());
             }
         }
 
-        let prompt = options
-            .prompt
-            .unwrap_or_else(|| "Accurate speech dictation transcription.".to_string());
-        form = form.text("prompt", prompt);
+        if let Some(prompt) = options.prompt {
+            let prompt_clean = prompt.trim();
+            if !prompt_clean.is_empty() {
+                form = form.text("prompt", prompt_clean.to_string());
+            }
+        }
 
         let temp = options.temperature.unwrap_or(0.0);
         form = form.text("temperature", temp.to_string());

@@ -25,7 +25,12 @@ import {
 type Tab = "dashboard" | "history" | "models" | "dictionary" | "settings";
 
 export const App: React.FC = () => {
-  const [isRecorderWindow, setIsRecorderWindow] = useState(false);
+  const [isRecorderWindow] = useState(() => {
+    if (typeof window !== "undefined") {
+      return window.location.hash.includes("recorder") || window.location.pathname.includes("recorder");
+    }
+    return false;
+  });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [currentTab, setCurrentTab] = useState<Tab>("dashboard");
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -46,9 +51,7 @@ export const App: React.FC = () => {
   };
 
   useEffect(() => {
-    // Check if we are mounted inside the floating recorder window
-    if (window.location.hash === "#recorder" || window.location.pathname.includes("recorder")) {
-      setIsRecorderWindow(true);
+    if (isRecorderWindow) {
       return;
     }
 

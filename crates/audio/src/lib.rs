@@ -198,6 +198,68 @@ impl AudioRecorder {
         *self.rms_level.lock().unwrap_or_else(|e| e.into_inner())
     }
 
+    /// Returns the approximate duration in seconds of audio captured so far in the buffer
+    pub fn get_buffer_duration_secs(&self) -> f32 {
+        let sample_count = {
+            let buf = self.audio_buffer.lock().unwrap();
+            buf.len()
+        };
+        if self.source_sample_rate > 0 && self.source_channels > 0 {
+            (sample_count as f32) / (self.source_sample_rate as f32 * self.source_channels as f32)
+        } else {
+            0.0
+        }
+    }
+
+    /// Takes a non-destructive in-memory snapshot of the currently recorded audio and encodes it to standard 16kHz WAV
+    pub fn get_wav_snapshot(&self) -> Result<Vec<u8>, AudioError> {
+        let raw_samples = self.audio_buffer.lock().unwrap().clone();
+        if raw_samples.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let mut samples = raw_samples;
+        for sample in samples.iter_mut() {
+            if sample.is_nan() || sample.is_infinite() {
+                *sample = 0.0;
+            }
+        }
+
+        let mono_samples: Vec<f32> = if self.source_channels > 1 {
+            samples
+                .chunks(self.source_channels as usize)
+                .map(|chunk| chunk.iter().sum::<f32>() / chunk.len() as f32)
+                .collect()
+        } else {
+            samples
+        };
+
+        let max_abs = mono_samples
+            .iter()
+            .map(|s| s.abs())
+            .fold(0.0f32, f32::max);
+
+        let normalized_samples: Vec<f32> = if max_abs > 0.0001 {
+            let target_peak = 0.80f32;
+            let gain = (target_peak / max_abs).clamp(1.0, 100.0);
+            mono_samples
+                .into_iter()
+                .map(|s| (s * gain).clamp(-1.0, 1.0))
+                .collect()
+        } else {
+            mono_samples
+        };
+
+        let target_sample_rate = 16000u32;
+        let resampled: Vec<f32> = if self.source_sample_rate != target_sample_rate && self.source_sample_rate > 0 {
+            resample_linear(&normalized_samples, self.source_sample_rate, target_sample_rate)
+        } else {
+            normalized_samples
+        };
+
+        encode_pcm16_wav(&resampled, target_sample_rate)
+    }
+
     pub fn stop_and_encode_wav(self) -> Result<Vec<u8>, AudioError> {
         self.is_recording.store(false, Ordering::SeqCst);
         let mut raw_samples = self.audio_buffer.lock().unwrap().clone();
@@ -261,24 +323,55 @@ impl AudioRecorder {
     }
 }
 
-/// Linear resampler for audio conversion to 16kHz
+/// High quality resampler for audio conversion to 16kHz with anti-aliased decimation
 fn resample_linear(input: &[f32], src_rate: u32, target_rate: u32) -> Vec<f32> {
     if input.is_empty() {
         return Vec::new();
     }
+    if src_rate == target_rate {
+        return input.to_vec();
+    }
+
     let ratio = src_rate as f64 / target_rate as f64;
     let target_len = (input.len() as f64 / ratio).round() as usize;
     let mut output = Vec::with_capacity(target_len);
 
-    for i in 0..target_len {
-        let src_idx = i as f64 * ratio;
-        let idx0 = (src_idx.floor() as usize).min(input.len() - 1);
-        let idx1 = (idx0 + 1).min(input.len() - 1);
-        let frac = (src_idx - idx0 as f64) as f32;
+    if ratio > 1.0 {
+        // Downsampling with box-filter anti-aliasing area integration
+        let window_half = (ratio * 0.5) as f64;
+        for i in 0..target_len {
+            let center = i as f64 * ratio;
+            let start = (center - window_half).max(0.0);
+            let end = (center + window_half).min((input.len() - 1) as f64);
 
-        let s0 = input[idx0];
-        let s1 = input[idx1];
-        output.push(s0 + frac * (s1 - s0));
+            let start_idx = start.floor() as usize;
+            let end_idx = end.ceil() as usize;
+
+            let mut sum = 0.0f32;
+            let mut count = 0.0f32;
+            for idx in start_idx..=end_idx.min(input.len() - 1) {
+                sum += input[idx];
+                count += 1.0;
+            }
+            if count > 0.0 {
+                output.push(sum / count);
+            } else {
+                let fallback_idx = (center.round() as usize).min(input.len() - 1);
+                output.push(input[fallback_idx]);
+            }
+        }
+    } else {
+        // Upsampling with linear interpolation
+        for i in 0..target_len {
+            let src_idx = i as f64 * ratio;
+            let idx0 = (src_idx.floor() as usize).min(input.len() - 1);
+            let idx1 = (idx0 + 1).min(input.len() - 1);
+            let frac = (src_idx - idx0 as f64) as f32;
+
+            let s0 = input[idx0];
+            let s1 = input[idx1];
+            output.push(s0 + frac * (s1 - s0));
+        }
     }
 
     output

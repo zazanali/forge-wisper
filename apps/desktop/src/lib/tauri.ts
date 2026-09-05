@@ -87,6 +87,15 @@ export const api = {
     }>("forge://model-download-progress", (event) => callback(event.payload));
   },
 
+  onLiveTranscript: (
+    callback: (payload: { text: string; delta?: string; is_partial: boolean }) => void
+  ) => {
+    return listen<{ text: string; delta?: string; is_partial: boolean }>(
+      "forge://live-transcript",
+      (event) => callback(event.payload)
+    );
+  },
+
   onToast: (callback: (message: string) => void) => {
     return listen<string>("forge://toast", (event) => callback(event.payload));
   },

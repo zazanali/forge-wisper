@@ -76,16 +76,34 @@ pub fn run() {
                 .build(),
         )
         .setup(|app| {
+            // Check command-line arguments to see if started via Windows boot autostart
+            let args: Vec<String> = std::env::args().collect();
+            let is_autostart_launch = args
+                .iter()
+                .any(|arg| arg == "--autostart" || arg == "--minimized" || arg == "--silent");
+
             // Register configured global hotkey from persisted settings
             let state = app.state::<PipelineState>();
-            let initial_hotkey = {
+            let (initial_hotkey, launch_at_startup) = {
                 let s = state.settings.lock().unwrap();
-                s.hotkey.clone()
+                (s.hotkey.clone(), s.launch_at_startup)
             };
             let _ = register_global_hotkey(app.handle(), &initial_hotkey);
             
-            // Automatically register in Windows startup registry so the app always starts on PC boot
-            let _ = set_autostart(true);
+            // Sync startup registration asynchronously without blocking UI initialization
+            if launch_at_startup {
+                tauri::async_runtime::spawn(async move {
+                    let _ = set_autostart(true);
+                });
+            }
+
+            // If launched normally by the user (not autostart on PC boot), show the main window immediately
+            if !is_autostart_launch {
+                if let Some(w) = app.get_webview_window("main") {
+                    let _ = w.show();
+                    let _ = w.set_focus();
+                }
+            }
 
             // Setup System Tray icon
             let show_i = MenuItem::with_id(app, "show", "Open Forge Wisper", true, None::<&str>)?;
@@ -179,7 +197,7 @@ pub fn set_autostart(_enable: bool) -> Result<(), String> {
                         "/t",
                         "REG_SZ",
                         "/d",
-                        &format!("\"{}\"", exe_str),
+                        &format!("\"{}\" --autostart", exe_str),
                         "/f",
                     ])
                     .status()

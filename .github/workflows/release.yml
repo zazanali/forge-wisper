@@ -67,10 +67,13 @@ jobs:
             - 🍎 **macOS**: `Forge-Wisper_${{ github.ref_name }}_aarch64.dmg` (Apple Silicon M1/M2/M3/M4 & Intel)
             
             ### ✨ What's New in This Release
+            - ⚡ **Real-Time Cursor Dictation**: Streams and types transcribed speech directly into your active cursor without lag or intrusive text blocking.
+            - 🌐 **99+ Language Support & Quick Switcher**: 1-click header toolbar dropdown with dedicated English Attention Head Locking to eliminate language confusion.
+            - 📝 **100% Dynamic Voice Snippets**: Voice macros and prompt shortcuts automatically expand onto fresh lines without hardcoding.
             - 🎨 **Redesigned Modern Dashboard**: Balanced 50/50 hero cards with a responsive real-time audio waveform equalizer.
             - 📊 **Dynamic Accomplishment Metrics**: Live SQLite-driven analytics for Total Words Transcribed, Time Saved, Sessions, and Typing WPM with **Today**, **This Week**, and **All Time** filters.
-            - 🚀 **Zero-Config Windows Auto-Startup**: Automatically registers with Windows Registry on boot so dictation is always ready when your PC powers on.
-            - 🎙️ **Hardware Audio VU Meter**: Real-time microphone input level and segmented LED monitoring.
+            - 🚀 **Zero-Config Windows Auto-Startup**: Automatically registers with Windows Registry on boot with instant, zero-hang background initialization.
+            - 🎙️ **Hardware Audio VU Meter & Anti-Aliased Resampling**: Band-limited decimation filter (48kHz/96kHz $\to$ 16kHz) for crystal-clear transcription accuracy.
             - ⚡ **Dual AI Engines**: Ultra-low latency Groq Cloud & 100% offline private Local Whisper with dynamic model switching.
             - ⌨️ **Interactive Shortcut Keycaps**: Dynamic hotkey indicator displaying your exact configured global shortcut.
             - 🌓 **High-Contrast Theme Polish**: Crisp readability in both Dark and Light modes.

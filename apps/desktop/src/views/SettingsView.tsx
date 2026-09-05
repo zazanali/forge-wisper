@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useRef } from "react";
 import { api } from "../lib/tauri";
-import type {
-  AppSettings,
-  AudioDeviceInfo,
-  FormattingMode,
-  RetentionPolicy,
+import {
+  SUPPORTED_LANGUAGES,
+  type AppSettings,
+  type AudioDeviceInfo,
+  type FormattingMode,
+  type RetentionPolicy,
 } from "../types";
 import { ForgeLogo } from "../components/ForgeLogo";
 import {
@@ -32,13 +33,16 @@ import {
   Radio,
   RotateCcw,
   ExternalLink,
+  Globe,
+  Languages,
+  Search,
 } from "lucide-react";
 
 interface SettingsViewProps {
   onNavigate?: (tab: any) => void;
 }
 
-type SettingsCategory = "engine" | "shortcuts" | "security" | "appearance" | "about";
+type SettingsCategory = "engine" | "language" | "shortcuts" | "security" | "appearance" | "about";
 
 export const formatKeyForDisplay = (keyStr: string): string => {
   const k = keyStr.trim();
@@ -64,6 +68,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
 
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isKeySaved, setIsKeySaved] = useState(false);
+  const [languageSearch, setLanguageSearch] = useState("");
 
   // Hotkey Recorder State
   const [isRecordingHotkey, setIsRecordingHotkey] = useState(false);
@@ -292,6 +297,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
 
   const categories: { id: SettingsCategory; label: string; icon: React.FC<{ className?: string }> }[] = [
     { id: "engine", label: "Engine & Audio", icon: Cpu },
+    { id: "language", label: "Language & Speech", icon: Globe },
     { id: "shortcuts", label: "Hotkeys & Voice", icon: Keyboard },
     { id: "security", label: "API Credentials", icon: Key },
     { id: "appearance", label: "Appearance & Privacy", icon: Palette },
@@ -569,6 +575,149 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
         </div>
       )}
 
+      {/* CATEGORY: Language & Speech */}
+      {activeCategory === "language" && (
+        <div className="space-y-5 animate-fadeIn">
+          {/* Active Language Hero Card */}
+          <div className="forge-card p-5 rounded-[12px] border border-[var(--border)] bg-[var(--surface-primary)] shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-[8px] bg-[var(--accent-subtle)] border border-[var(--accent-border)] flex items-center justify-center text-[var(--accent)]">
+                  <Languages className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-[14px] font-semibold text-[var(--text-primary)] tracking-tight">
+                    Speech Recognition Language
+                  </h3>
+                  <p className="text-[12px] text-[var(--text-muted)]">
+                    Whisper AI automatically detects or transcribes 99+ global languages
+                  </p>
+                </div>
+              </div>
+
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[4px] text-[11px] font-mono font-medium bg-[var(--accent-subtle)] text-[var(--accent)] border border-[var(--accent-border)]">
+                {(!settings.language || settings.language === "auto") ? "✨ AUTO-DETECT ACTIVE" : `LOCKED: ${settings.language.toUpperCase()}`}
+              </span>
+            </div>
+
+            {/* Quick 1-Click Popular Language Pills */}
+            <div className="pt-2">
+              <span className="text-[11px] font-mono text-[var(--text-muted)] block mb-2">
+                Popular & Frequently Used:
+              </span>
+              <div className="flex items-center gap-2 flex-wrap">
+                {[
+                  { code: "auto", name: "Auto-Detect", flag: "🌐" },
+                  { code: "en", name: "English", flag: "🇺🇸" },
+                  { code: "ur", name: "Urdu (اردو)", flag: "🇵🇰" },
+                  { code: "hi", name: "Hindi (हिन्दी)", flag: "🇮🇳" },
+                  { code: "es", name: "Spanish", flag: "🇪🇸" },
+                  { code: "fr", name: "French", flag: "🇫🇷" },
+                  { code: "de", name: "German", flag: "🇩🇪" },
+                  { code: "ar", name: "Arabic (العربية)", flag: "🇸🇦" },
+                  { code: "zh", name: "Chinese (中文)", flag: "🇨🇳" },
+                  { code: "ja", name: "Japanese (日本語)", flag: "🇯🇵" },
+                  { code: "pt", name: "Portuguese", flag: "🇧🇷" },
+                  { code: "ru", name: "Russian (Русский)", flag: "🇷🇺" },
+                ].map((lang) => {
+                  const isSelected = (settings.language || "auto") === lang.code;
+                  return (
+                    <button
+                      key={lang.code}
+                      type="button"
+                      onClick={() => handleSave({ ...settings, language: lang.code })}
+                      className={`px-3 py-1.5 rounded-[7px] text-[12px] font-medium transition-all cursor-pointer flex items-center gap-1.5 border ${
+                        isSelected
+                          ? "bg-[var(--accent-subtle)] text-[var(--accent)] border-[var(--accent)] font-semibold shadow-xs ring-1 ring-[var(--accent)]"
+                          : "bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-[var(--border)]"
+                      }`}
+                    >
+                      <span>{lang.flag}</span>
+                      <span>{lang.name}</span>
+                      {isSelected && <Check className="w-3 h-3 text-[var(--accent)] ml-0.5" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Searchable 99+ Languages Grid */}
+          <div className="forge-card p-4 sm:p-5 rounded-[8px] border border-[var(--border)] bg-[var(--surface-primary)] space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h4 className="text-[13px] font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-[var(--accent)]" /> All 99+ Supported Whisper Languages
+                </h4>
+                <p className="text-[12px] text-[var(--text-secondary)] mt-0.5">
+                  Select any language to specialize speech decoding or search by country / name
+                </p>
+              </div>
+
+              {/* Search Bar */}
+              <div className="relative w-full sm:w-64">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                <input
+                  type="text"
+                  value={languageSearch}
+                  onChange={(e) => setLanguageSearch(e.target.value)}
+                  placeholder="Search languages..."
+                  className="w-full pl-8 pr-3 py-1.5 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-[6px] text-[12px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)]"
+                />
+              </div>
+            </div>
+
+            {/* Language Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 max-h-[380px] overflow-y-auto p-1 pr-2 custom-scrollbar">
+              {SUPPORTED_LANGUAGES.filter((lang) => {
+                const q = languageSearch.toLowerCase().trim();
+                if (!q) return true;
+                return (
+                  lang.name.toLowerCase().includes(q) ||
+                  (lang.nativeName && lang.nativeName.toLowerCase().includes(q)) ||
+                  lang.code.toLowerCase().includes(q)
+                );
+              }).map((lang) => {
+                const isSelected = (settings.language || "auto") === lang.code;
+                return (
+                  <button
+                    key={lang.code}
+                    type="button"
+                    onClick={() => handleSave({ ...settings, language: lang.code })}
+                    className={`p-2.5 rounded-[7px] border text-left transition-all cursor-pointer flex items-center justify-between ${
+                      isSelected
+                        ? "border-[var(--accent)] bg-[var(--accent-subtle)] ring-1 ring-[var(--accent)]"
+                        : "border-[var(--border)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)]"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 overflow-hidden">
+                      <span className="text-[18px] shrink-0">{lang.flag}</span>
+                      <div className="truncate">
+                        <div className="text-[13px] font-medium text-[var(--text-primary)] truncate">
+                          {lang.name}
+                        </div>
+                        {lang.nativeName && (
+                          <div className="text-[11px] text-[var(--text-muted)] truncate">
+                            {lang.nativeName}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--surface-primary)] border border-[var(--border)] text-[var(--text-muted)]">
+                        {lang.code}
+                      </span>
+                      {isSelected && <Check className="w-3.5 h-3.5 text-[var(--accent)]" />}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* CATEGORY 2: Hotkeys & Voice */}
       {activeCategory === "shortcuts" && (
         <div className="space-y-5 animate-fadeIn">
@@ -810,7 +959,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                   <Sparkles className="w-4 h-4 text-[var(--accent)]" /> Default Formatting Mode
                 </h4>
                 <p className="text-[13px] text-[var(--text-secondary)] mt-1">
-                  How text is cleaned and structured before pasting.
+                  How text is cleaned and structured before writing.
                 </p>
               </div>
 
@@ -824,6 +973,83 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                 <option value="Structured">Structured (Convert spoken outlines into bullet points)</option>
                 <option value="Raw">Raw (Verbatim speech without modification)</option>
               </select>
+            </div>
+          </div>
+
+          {/* Dictation Output Style Card */}
+          <div className="forge-card p-4 space-y-3 rounded-[8px] border border-[var(--border)] bg-[var(--surface-primary)]">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-[13px] font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
+                  <Zap className="w-4 h-4 text-[var(--warning)]" /> Dictation Output Mode
+                </h4>
+                <p className="text-[13px] text-[var(--text-secondary)] mt-0.5">
+                  Control how recognized words are written into your active application.
+                </p>
+              </div>
+              <span className="text-[11px] font-mono text-[var(--accent)]">In-Place Typing</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => handleSave({ ...settings, output_mode: "realtime_stream" })}
+                className={`p-3 rounded-[8px] text-left border transition-all cursor-pointer ${
+                  (settings.output_mode || "realtime_stream") === "realtime_stream"
+                    ? "border-[var(--accent)] bg-[var(--accent-subtle)]"
+                    : "border-[var(--border)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)]"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-semibold text-[13px] text-[var(--text-primary)]">Real-Time Streaming</span>
+                  {(settings.output_mode || "realtime_stream") === "realtime_stream" && (
+                    <span className="w-2 h-2 rounded-full bg-[var(--accent)]" />
+                  )}
+                </div>
+                <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                  Writes text directly into whichever text box you clicked in real-time as you speak.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSave({ ...settings, output_mode: "progressive" })}
+                className={`p-3 rounded-[8px] text-left border transition-all cursor-pointer ${
+                  settings.output_mode === "progressive"
+                    ? "border-[var(--accent)] bg-[var(--accent-subtle)]"
+                    : "border-[var(--border)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)]"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-semibold text-[13px] text-[var(--text-primary)]">Smooth Typewriter</span>
+                  {settings.output_mode === "progressive" && (
+                    <span className="w-2 h-2 rounded-full bg-[var(--accent)]" />
+                  )}
+                </div>
+                <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                  Types entire paragraph smoothly with natural keystroke cadence upon speech completion.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSave({ ...settings, output_mode: "instant_paste" })}
+                className={`p-3 rounded-[8px] text-left border transition-all cursor-pointer ${
+                  settings.output_mode === "instant_paste"
+                    ? "border-[var(--accent)] bg-[var(--accent-subtle)]"
+                    : "border-[var(--border)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)]"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-semibold text-[13px] text-[var(--text-primary)]">Instant Paste</span>
+                  {settings.output_mode === "instant_paste" && (
+                    <span className="w-2 h-2 rounded-full bg-[var(--accent)]" />
+                  )}
+                </div>
+                <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                  Pastes full text instantly via clipboard simulation (Ctrl+V / Cmd+V).
+                </p>
+              </button>
             </div>
           </div>
         </div>
@@ -1001,6 +1227,41 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                   Automatically syncs with your Windows OS dark/light mode.
                 </p>
               </button>
+            </div>
+          </div>
+
+          {/* System Startup & Background Auto-Launch */}
+          <div className="forge-card p-4 space-y-3 rounded-[8px] border border-[var(--border)] bg-[var(--surface-primary)]">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-[14px] font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
+                  <Monitor className="w-4 h-4 text-[var(--accent)]" /> System Startup & Background Autostart
+                </h4>
+                <p className="text-[13px] text-[var(--text-secondary)] mt-0.5">
+                  Starts Forge Wisper silently in the system tray when your PC boots.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleSave({ ...settings, launch_at_startup: !settings.launch_at_startup })}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  settings.launch_at_startup ? "bg-[var(--accent)]" : "bg-[var(--surface-elevated)] border-[var(--border)]"
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    settings.launch_at_startup ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+
+            <div className="p-2.5 rounded-[6px] bg-[var(--surface-elevated)] border border-[var(--border)] text-[12px] text-[var(--text-secondary)] flex items-center justify-between font-mono">
+              <span>Silent Tray Startup on PC Boot</span>
+              <span className={settings.launch_at_startup ? "text-[var(--accent)] font-medium" : "text-[var(--text-muted)]"}>
+                {settings.launch_at_startup ? "Enabled (0ms UI lag)" : "Disabled"}
+              </span>
             </div>
           </div>
 

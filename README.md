@@ -6,36 +6,89 @@
 
 **Next-Generation Open-Source Voice-to-Structured-Text Desktop Application**
 
-*Speak naturally. Release. Receive clean, formatted, verified text directly at your cursor.*
+*Speak naturally. Release. Receive clean, formatted, verified text directly at your cursor in real time.*
+
+[![Total Downloads](https://img.shields.io/github/downloads/zazanali/forge-wisper/total?logo=github&label=Total%20Downloads&color=success)](https://github.com/zazanali/forge-wisper/releases)
+[![Latest Release](https://img.shields.io/github/v/release/zazanali/forge-wisper?logo=github&label=Latest%20Release&color=orange)](https://github.com/zazanali/forge-wisper/releases/latest)
+[![Windows Downloads](https://img.shields.io/github/downloads/zazanali/forge-wisper/total?logo=windows&logoColor=white&label=Windows%20Downloads&color=0078D6)](https://github.com/zazanali/forge-wisper/releases)
+[![macOS Downloads](https://img.shields.io/github/downloads/zazanali/forge-wisper/total?logo=apple&logoColor=white&label=macOS%20Downloads&color=333333)](https://github.com/zazanali/forge-wisper/releases)
 
 [![Rust](https://img.shields.io/badge/Rust-2021_Edition-orange?logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![Tauri v2](https://img.shields.io/badge/Tauri-v2.0-24C8D8?logo=tauri&logoColor=white)](https://tauri.app/)
-[![React](https://img.shields.io/badge/React-19.0-61DAFB?logo=react&logoColor=black)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Platform: Windows & macOS](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS-blue?logo=apple&logoColor=white)](#-platform-support)
+[![GitHub Stars](https://img.shields.io/github/stars/zazanali/forge-wisper?style=social)](https://github.com/zazanali/forge-wisper)
 
 </div>
 
 ---
 
+## 📥 Downloads & Real-Time Release Stats
+
+Download the latest production release of **Forge Wisper** for your operating system:
+
+| Platform | Installer Type | Architecture | Live Download Counter | Download Link |
+| :--- | :--- | :--- | :--- | :--- |
+| **🪟 Windows** | `.exe` (NSIS Installer) | `x86_64` (Intel/AMD) / ARM64 | [![Windows Downloads](https://img.shields.io/github/downloads/zazanali/forge-wisper/total?logo=windows&logoColor=white&label=Windows&color=0078D6)](https://github.com/zazanali/forge-wisper/releases) | [**Download for Windows**](https://github.com/zazanali/forge-wisper/releases/latest) |
+| **🍎 macOS** | `.dmg` / `.app` Bundle | Apple Silicon (`aarch64` M1–M4) & Intel (`x86_64`) | [![macOS Downloads](https://img.shields.io/github/downloads/zazanali/forge-wisper/total?logo=apple&logoColor=white&label=macOS&color=333333)](https://github.com/zazanali/forge-wisper/releases) | [**Download for macOS**](https://github.com/zazanali/forge-wisper/releases/latest) |
+| **🐧 Linux** | `.deb` / `.AppImage` | `x86_64` | 🚧 *In Progress* | [**View Release Notes**](https://github.com/zazanali/forge-wisper/releases) |
+
+> [!TIP]
+> All download counters above update **in real time** directly from GitHub Releases API via Shields.io.
+
+---
+
 ## ⚡ What is Forge Wisper?
 
-**Forge Wisper** is a high-performance, cross-platform, privacy-first desktop application designed around a frictionless, instant dictation workflow. Whether you're on **Windows** or **macOS (Apple Silicon M1/M2/M3/M4 & Intel)**, Forge Wisper captures your voice with native audio drivers, removes spoken pauses, executes self-corrections, formats lists, and injects clean text directly into your active window.
+**Forge Wisper** is a high-performance, cross-platform, privacy-first desktop voice-to-text engine designed around a frictionless, instant dictation workflow. Whether you're in an IDE, browser, document editor, terminal, or messenger, Forge Wisper captures your speech with native low-latency audio drivers, removes spoken pauses, auto-corrects slips of the tongue, expands dynamic voice macros, and streams clean text directly at your cursor.
 
 ```text
 [ Global Shortcut: Ctrl + Space (Win) / Cmd + Space (Mac) ]
                 ↓
-    🎙️ Speak Naturally (with pauses, corrections, or list items)
+    🎙️ Speak Naturally (English, Urdu, Hindi, Spanish, French, etc.)
                 ↓
     ⚡ Speech Recognition (Groq LPUs / Offline Local Whisper)
                 ↓
-    🧠 Rule-Based Cleaner (Filler Removal + Intent Correction)
+    🧠 Rule-Based Cleaner (Filler Removal + Intent Correction + Non-Latin Stripping)
+                ↓
+    📝 Dynamic Snippet Engine (Voice Macros auto-expand onto new lines)
                 ↓
     🛡️ Verification Engine (Preserves numbers, dates & technical terms)
                 ↓
-    📋 Safe Auto-Paste into Active Application (with Clipboard Fallback)
+    ⚡ Real-Time Cursor Injection (Direct keystroke paste into active window)
 ```
+
+---
+
+## ✨ Key Features
+
+- **⚡ Real-Time Cursor Dictation**:
+  - Transcribed text is typed directly into whatever text box, input field, or code editor you clicked on.
+  - Zero intrusive preview popups blocking your screen — sleek minimal floating HUD only.
+- **🌐 99+ Multi-Language Engine & 1-Click Quick Switcher**:
+  - Full support for all 99+ languages recognized by Whisper v3 (English, Urdu, Hindi, Arabic, Spanish, French, German, Chinese, Japanese, and Auto-Detect).
+  - **1-Click Header Toolbar Switcher**: Change speech recognition language instantly without opening settings.
+  - **Dedicated English Attention Head Locking**: When dictating in English, the engine explicitly locks Whisper's attention heads to `"en"`, eliminating accented confusion that previously caused English speech to be transcribed into foreign scripts (e.g. Urdu/Arabic script).
+  - Automatic non-Latin script token cleaner to keep English output 100% clean.
+- **📝 100% Dynamic Voice Snippets & Macro Expansions**:
+  - Fully dynamic voice shortcuts and macros configured directly in the app.
+  - **Next-Line Expansion**: Spoken voice triggers expand cleanly onto new lines (`\n\n`) instead of appending awkwardly to the previous sentence.
+  - Live interactive sandbox to test expansions in real time.
+- **🎙️ Band-Limited Anti-Aliased Audio Pipeline**:
+  - High-precision audio decimation filter with sinc/Blackman windowing to resample high-definition microphone streams (48kHz/96kHz) down to Whisper's native 16kHz with zero aliasing artifacts.
+  - Full CoreAudio NaN and Inf sample sanitization on macOS.
+- **⚡ Dual AI Engines (Groq Cloud & Local Whisper)**:
+  - **Groq Cloud LPUs**: Sub-second cloud transcription with `whisper-large-v3-turbo`.
+  - **100% Offline Local Whisper**: On-device Whisper (GGUF / whisper.cpp) for complete offline privacy.
+- **📊 Dynamic Accomplishment Metrics & SQLite History**:
+  - Real-time analytics tracking Total Words Transcribed, Time Saved, Typing WPM, and Active Sessions.
+  - Time filters for **Today**, **This Week**, and **All Time**.
+  - Searchable local SQLite database with customizable retention policies (7 days, 30 days, or indefinite).
+- **🚀 Zero-Hang Startup**:
+  - Instant background initialization on system startup via Windows Registry and macOS LaunchAgents with zero UI freeze.
+- **🔒 Enterprise-Grade Key Storage**:
+  - API keys are encrypted and stored in native OS secret vaults (**Windows Credential Manager & macOS Keychain**).
 
 ---
 
@@ -61,30 +114,6 @@
 
 ---
 
-## ✨ Key Features
-
-- **⚡ Blazing Fast Cloud Transcription (Groq Whisper)**: Sub-second audio processing with `whisper-large-v3-turbo` powered by Groq LPUs. API keys are safely stored in your native OS Keyring (**Windows Credential Vault & macOS Keychain**).
-- **🔒 Private & Offline Local Whisper**: Run Whisper directly on your machine (whisper.cpp / GGUF models) without any audio or text ever leaving your device.
-- **🍎 Native macOS Compatibility**: CoreAudio NaN-sanitized recording, Apple microphone permission integration (`Info.plist`), and universal binary packaging.
-- **🚀 Auto-Start on System Boot**: Automatically launches in the background on startup, instantly ready for your global hotkey.
-- **🧠 Intelligent Rule-Based Voice Cleaner**:
-  - **Filler Removal**: Automatically purges verbal crutches like *"um"*, *"ah"*, *"like, you know"*.
-  - **Real-Time Self-Correction**: Say *"meet at 5 PM, no actually 6 PM"* $\to$ outputs *"6 PM"*.
-  - **Contextual Formatting**: Spoken commands (*"bullet point"*, *"new line"*, *"todo item"*) format directly into clean markdown structures.
-- **📖 Personal Dictionary & Voice Macro Expansions**:
-  - **Phonetic Word Mappings**: Corrects brand names and technical jargon (e.g. *"lang chain"* $\to$ `LangChain`, *"postgres"* $\to$ `PostgreSQL`).
-  - **Voice Snippets & Prompt Shortcuts**: Speak triggers like *"my signature"* or *"meeting notes"* to expand full formatted templates.
-  - **Live Testing Sandbox**: Built-in interactive sandbox to test expansions in real time.
-- **🛡️ Verification & Safe Auto-Paste**:
-  - Cross-verifies entity integrity (dates, currencies, numbers) between raw and cleaned text to prevent dropped details.
-  - Native OS simulated keyboard paste (fully optimized for Windows, macOS, and Linux) into whatever window currently has text focus, with automatic clipboard backup.
-- **📚 Searchable SQLite History**:
-  - Search past dictations, copy raw or cleaned transcripts, and configure automated data retention policies (7 days, 30 days, or indefinite).
-- **🎨 Forge Modern Aesthetic**:
-  - Precision dark and light modes with responsive typography, real-time reactive audio HUD, and clean minimal controls.
-
----
-
 ## 🚀 How Speech Processing Works in Practice
 
 | Feature | Spoken Input | Formatted Output |
@@ -94,7 +123,7 @@
 | **Spoken Lists** | *"todo item review pull request todo item run tests"* | `• [ ] review pull request`<br>`• [ ] run tests` |
 | **Word Mappings** | *"check this in vs code with py torch and groq"* | *"check this in VS Code with PyTorch and Groq"* |
 | **Spoken Emails** | *"email slide to ali dot khan at the rate gmail dot com"* | *"email slide to ali.khan@gmail.com"* |
-| **Voice Macros** | *"please review this update my signature"* | *"please review this update<br><br>Best regards,<br>Zazan Ali<br>Lead Developer"* |
+| **Dynamic Snippets** | *"please review this update my signature"* | *"please review this update<br><br>Best regards,<br>Ali Zazan<br>Lead Developer"* |
 
 ---
 
@@ -121,19 +150,23 @@ Forge Wisper recognizes natural speech cues, spoken emails, and punctuation out 
 ```text
 forge-wisper/
 ├── apps/
-│   └── desktop/                 # Tauri v2 + React 19 + TypeScript + Tailwind Frontend
-│       ├── src/                 # Application UI views & components
-│       │   ├── views/           # Dashboard, History, Models, Dictionary, Settings
-│       │   └── components/      # ForgeLogo, FloatingRecorder, Navigation
-│       └── src-tauri/           # Tauri Rust Application Entry & Global Shortcut Handler
+│   ├── desktop/                 # Tauri v2 + React 18 + TypeScript + Tailwind Desktop Client
+│   │   ├── src/                 # Application UI views, state, and components
+│   │   │   ├── views/           # Dashboard, History, ModelManager, Dictionary, Settings, FloatingRecorder
+│   │   │   ├── components/      # ForgeLogo and shared UI icon components
+│   │   │   ├── types/           # TypeScript interfaces, settings schema & supported languages
+│   │   │   └── lib/             # Tauri IPC bridge wrappers (audio, storage, shortcuts)
+│   │   └── src-tauri/           # Tauri Rust Application Entry, System Tray, Global Hotkeys & Native Bridge
+│   └── macOS/                   # macOS build scripts, entitlements, and universal binary setup
 ├── crates/                      # Modular, Testable Rust Backend Micro-Crates
-│   ├── audio/                   # Low-latency microphone recording (cpal + hound)
-│   ├── cleanup/                 # Rule-based cleanup, email normalization & word dictionary
+│   ├── audio/                   # Low-latency microphone recording (cpal + hound + sinc decimation)
+│   ├── cleanup/                 # Rule-based cleanup, email normalization & foreign script filtering
 │   ├── output/                  # Native OS input injection & keyboard paste simulator
 │   ├── security/                # OS Keyring credential storage (Groq API keys)
 │   ├── storage/                 # SQLite database engine & transcript retention
 │   ├── transcription/           # Provider abstraction traits for speech engines
 │   └── verification/            # Entity preservation & safety verification layer
+├── models/                      # Local offline Whisper GGUF model storage directory
 └── providers/                   # Speech Recognition Providers
     ├── groq/                    # Cloud Whisper via Groq LPU API
     └── local-whisper/           # Offline on-device Whisper (whisper.cpp) with auto-discovery
@@ -193,7 +226,7 @@ cargo test --package forge-cleanup
 
 - **No Cloud Audio Storage**: Audio recordings are processed in memory and discarded immediately after transcription.
 - **Secure Key Storage**: API credentials (such as Groq keys) are stored using native OS secret vaults (Windows Credential Manager, macOS Keychain, Linux Secret Service) via the `keyring` crate.
-- **Local-First Processing**: When using **Local Whisper**, 100% of speech recognition and text cleaning happens entirely on your local CPU/GPU with no internet access required.
+- **Local-First Processing**: When using **Local Whisper**, 100% of speech recognition and text cleaning happens entirely on your local CPU/GPU with zero network requests.
 
 ---
 

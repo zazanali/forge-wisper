@@ -69,8 +69,10 @@ pub fn update_settings(
 }
 
 #[tauri::command]
-pub fn get_audio_devices() -> Result<Vec<AudioDeviceInfo>, String> {
-    list_input_devices().map_err(|e| e.to_string())
+pub async fn get_audio_devices() -> Result<Vec<AudioDeviceInfo>, String> {
+    tokio::task::spawn_blocking(|| list_input_devices().map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]

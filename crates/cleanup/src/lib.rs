@@ -44,9 +44,7 @@ impl Default for CleanupOptions {
         dictionary.insert("kubernetes".to_string(), "Kubernetes".to_string());
         dictionary.insert("github".to_string(), "GitHub".to_string());
 
-        let mut snippets = HashMap::new();
-        snippets.insert("my signature".to_string(), "Best regards,\n[Your Name]\nLead Developer".to_string());
-        snippets.insert("email signoff".to_string(), "Thanks and best regards,\n[Your Name]".to_string());
+        let snippets = HashMap::new();
 
         Self {
             mode: FormattingMode::Smart,
@@ -73,8 +71,7 @@ pub enum CleanupError {
 pub struct RuleBasedCleaner;
 
 lazy_static! {
-    static ref RE_UM_UH: Regex = Regex::new(r"(?i)\b(um|uh|er|ah|like,?\s+um|you know,?\s+uh)\b").unwrap();
-    static ref RE_YOU_KNOW: Regex = Regex::new(r"(?i)\b(you know|basically|sort of|kind of)\b").unwrap();
+    static ref RE_UM_UH: Regex = Regex::new(r"(?i)\b(um|uh|umm|uhh|er,?\s+um)\b").unwrap();
     static ref RE_MULTI_SPACE: Regex = Regex::new(r"[ \t]+").unwrap();
     static ref RE_PUNCT_SPACE: Regex = Regex::new(r"\s+([,.:;?!])").unwrap();
     static ref RE_SPOKEN_PUNCT: Vec<(Regex, &'static str)> = vec![
@@ -86,18 +83,16 @@ lazy_static! {
         (Regex::new(r"(?i)\b(period|full stop)\b").unwrap(), "."),
         (Regex::new(r"(?i)\bquestion mark\b").unwrap(), "?"),
         (Regex::new(r"(?i)\b(exclamation mark|exclamation point)\b").unwrap(), "!"),
-        (Regex::new(r"(?i)\bcolon\b").unwrap(), ":"),
-        (Regex::new(r"(?i)\bsemicolon\b").unwrap(), ";"),
-        (Regex::new(r"(?i)\b(hyphen|dash)\b").unwrap(), "-"),
+        (Regex::new(r"(?i)\b(semi-colon|semicolon)\b").unwrap(), ";"),
+        (Regex::new(r"(?i)\b(hyphen|dash symbol)\b").unwrap(), "-"),
         (Regex::new(r"(?i)\bunderscore\b").unwrap(), "_"),
         (Regex::new(r"(?i)\b(forward slash|slash)\b").unwrap(), "/"),
         (Regex::new(r"(?i)\b(at the rate of|at the rate|at sign|at symbol)\b").unwrap(), "@"),
         (Regex::new(r"(?i)\bdot\s+(com|org|net|io|ai|co|dev|app|edu|gov|me|info|xyz|tech|pk|in|uk|us|ca|de|fr)\b").unwrap(), ".$1"),
-        (Regex::new(r"(?i)\b(dot|point)\b").unwrap(), "."),
         (Regex::new(r"(?i)\b(hashtag|hash sign)\b").unwrap(), "#"),
         (Regex::new(r"(?i)\b(open parenthesis|open paren)\b").unwrap(), "("),
         (Regex::new(r"(?i)\b(close parenthesis|close paren)\b").unwrap(), ")"),
-        (Regex::new(r"(?i)\b(open quote|quote)\b").unwrap(), "\""),
+        (Regex::new(r"(?i)\b(open quote|quote symbol)\b").unwrap(), "\""),
         (Regex::new(r"(?i)\b(close quote|end quote|unquote)\b").unwrap(), "\""),
     ];
 
@@ -131,37 +126,44 @@ impl RuleBasedCleaner {
 
         let mut text = raw.to_string();
 
-        // 1. Voice snippet & macro expansion ("my signature" -> full text macro)
-        text = Self::expand_snippets(&text, &options.snippets);
-
-        // 2. Spoken corrections ("Tuesday, actually Thursday" -> "Thursday")
+        // 1. Spoken corrections ("Tuesday, actually Thursday" -> "Thursday")
         text = Self::apply_corrections(&text);
 
-        // 3. Spoken punctuation & verbal commands replacement ("new paragraph", "comma", "bullet point")
+        // 2. Spoken punctuation & verbal commands replacement ("new paragraph", "comma", "bullet point")
         text = Self::apply_spoken_punctuation(&text);
 
-        // 4. Filler word removal ("um", "uh")
+        // 3. Filler word removal ("um", "uh")
         text = Self::remove_fillers(&text);
 
-        // 5. Number & currency normalization ("fifteen thousand five hundred" -> "15,500")
+        // 4. Number & currency normalization ("fifteen thousand five hundred" -> "15,500")
         text = Self::normalize_numbers(&text);
 
-        // 6. Personal dictionary replacement
+        // 5. Personal dictionary replacement
         text = Self::apply_dictionary(&text, &options.dictionary);
 
-        // 7. Email & URL / Web address smart normalization ("ali.khan@gmail.com", "google.com")
+        // 6. Email & URL / Web address smart normalization ("ali.khan@gmail.com", "google.com")
         text = Self::normalize_emails_and_urls(&text);
 
-        // 8. Formatting & spacing (protecting emails, URLs, and decimal numbers)
+        // 7. Formatting & spacing (protecting emails, URLs, and decimal numbers)
         text = Self::fix_punctuation_and_spacing(&text);
 
-        // 9. Structure detection (for Structured / Smart modes)
+        // 8. Structure detection (for Structured / Smart modes)
         if matches!(options.mode, FormattingMode::Structured | FormattingMode::Smart) {
             text = Self::apply_structure(&text);
         }
 
-        // 10. Capitalize sentences (preserving email & URL lower-casing)
+        // 9. Capitalize sentences (preserving email & URL lower-casing)
         text = Self::capitalize_sentences(&text);
+
+        // 10. Dynamic Voice snippet & macro expansion configured in app
+        text = Self::expand_snippets(&text, &options.snippets);
+
+        // 11. Language-specific cleanup: If dictating in English, strip any stray non-Latin script hallucinations
+        if transcript.language == "en" {
+            let re_arabic_script = Regex::new(r"[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]+").unwrap();
+            text = re_arabic_script.replace_all(&text, "").to_string();
+            text = RE_MULTI_SPACE.replace_all(&text, " ").to_string();
+        }
 
         let cleaned = text.trim().to_string();
 
@@ -325,8 +327,7 @@ impl RuleBasedCleaner {
 
     /// Removes vocal filler sounds
     pub fn remove_fillers(input: &str) -> String {
-        let text = RE_UM_UH.replace_all(input, "").to_string();
-        RE_YOU_KNOW.replace_all(&text, "").to_string()
+        RE_UM_UH.replace_all(input, "").to_string()
     }
 
     /// Normalizes basic spoken numbers and currencies
@@ -366,7 +367,7 @@ impl RuleBasedCleaner {
         text
     }
 
-    /// Expands voice snippet shortcuts and repetitive prompt macros (e.g. "my signature" -> custom multiline block)
+    /// Expands dynamic voice snippets & prompt macros configured in the app
     pub fn expand_snippets(input: &str, snippets: &HashMap<String, String>) -> String {
         let mut text = input.to_string();
         for (trigger, expansion) in snippets {
@@ -374,8 +375,22 @@ impl RuleBasedCleaner {
             if trigger_trimmed.is_empty() {
                 continue;
             }
-            if let Ok(re) = Regex::new(&format!(r"(?i)\b{}\b", regex::escape(trigger_trimmed))) {
-                text = re.replace_all(&text, expansion.as_str()).to_string();
+            // Match trigger with optional leading whitespace and optional trailing sentence punctuation added by Whisper
+            let pattern = format!(r"(?i)\s*\b{}\b[\.!\?]?", regex::escape(trigger_trimmed));
+            if let Ok(re) = Regex::new(&pattern) {
+                let current_text = text.clone();
+                text = re.replace_all(&current_text, |caps: &regex::Captures| {
+                    let match_start = caps.get(0).map(|m| m.start()).unwrap_or(0);
+                    let prefix = &current_text[..match_start];
+                    let trimmed_prefix = prefix.trim_end_matches(|c: char| c.is_whitespace() && c != '\n');
+
+                    // If there is preceding text on the line, start the expansion on a new line
+                    if !trimmed_prefix.is_empty() && !trimmed_prefix.ends_with('\n') {
+                        format!("\n{}", expansion)
+                    } else {
+                        expansion.clone()
+                    }
+                }).to_string();
             }
         }
         text
@@ -497,18 +512,15 @@ impl RuleBasedCleaner {
         text
     }
 
-    /// Scrubs common Whisper silence/cut-off hallucinations ("Thank you.", "Thank you for watching.", etc.)
+    /// Scrubs common Whisper silence/cut-off subtitle hallucinations ("Thank you for watching.", "Subtitles by...", etc.)
     pub fn scrub_whisper_hallucinations(input: &str) -> &str {
         let trimmed = input.trim().trim_end_matches(['.', '!', '?']).trim();
-        let is_hallucination = trimmed.eq_ignore_ascii_case("thank you")
-            || trimmed.eq_ignore_ascii_case("thank you for watching")
-            || trimmed.eq_ignore_ascii_case("thank you very much")
+        let is_hallucination = trimmed.eq_ignore_ascii_case("thank you for watching")
             || trimmed.eq_ignore_ascii_case("thanks for watching")
             || trimmed.eq_ignore_ascii_case("thanks for listening")
             || trimmed.eq_ignore_ascii_case("subtitles by the amara.org community")
-            || trimmed.eq_ignore_ascii_case("you")
-            || trimmed.eq_ignore_ascii_case("bye")
-            || trimmed.eq_ignore_ascii_case("goodbye");
+            || trimmed.eq_ignore_ascii_case("subtitles by")
+            || trimmed.to_lowercase().starts_with("subtitles by the");
 
         if is_hallucination {
             ""
@@ -542,7 +554,7 @@ mod tests {
 
     #[test]
     fn test_filler_removal() {
-        let input = "I um think this is uh basically ready";
+        let input = "I um think this is uh ready";
         let res = RuleBasedCleaner::remove_fillers(input);
         let cleaned = RuleBasedCleaner::fix_punctuation_and_spacing(&res);
         assert_eq!(cleaned.trim(), "I think this is ready");
@@ -588,7 +600,7 @@ mod tests {
     #[test]
     fn test_whisper_hallucination_scrub() {
         let transcript = Transcript {
-            text: "Thank you.".to_string(),
+            text: "Thank you for watching.".to_string(),
             language: "en".to_string(),
             provider: "groq".to_string(),
             model: "whisper-large-v3-turbo".to_string(),
@@ -599,6 +611,18 @@ mod tests {
         let options = CleanupOptions::default();
         let cleaned = RuleBasedCleaner::clean(&transcript, &options).unwrap();
         assert_eq!(cleaned.cleaned_text, "");
+
+        // Normal "Thank you" must NOT be scrubbed
+        let transcript_valid = Transcript {
+            text: "Thank you.".to_string(),
+            language: "en".to_string(),
+            provider: "groq".to_string(),
+            model: "whisper-large-v3-turbo".to_string(),
+            duration_ms: 1000,
+            confidence: Some(0.98),
+        };
+        let cleaned_valid = RuleBasedCleaner::clean(&transcript_valid, &options).unwrap();
+        assert_eq!(cleaned_valid.cleaned_text, "Thank you.");
     }
 
     #[test]
@@ -643,13 +667,21 @@ mod tests {
     fn test_expand_snippets() {
         let mut snippets = HashMap::new();
         snippets.insert("my signature".to_string(), "Best regards,\nAli\nLead Developer".to_string());
+        snippets.insert("code review".to_string(), "LGTM! Checked types and unit tests.".to_string());
 
+        // 1. Spoken with preceding sentence -> breaks onto new line
         let input = "Thank you for the update, my signature";
         let res = RuleBasedCleaner::expand_snippets(input, &snippets);
-        assert!(res.contains("Best regards,\nAli\nLead Developer"));
+        assert_eq!(res, "Thank you for the update,\nBest regards,\nAli\nLead Developer");
 
+        // 2. Spoken alone with no preceding text -> no leading newline
+        let input_alone = "my signature.";
+        let res_alone = RuleBasedCleaner::expand_snippets(input_alone, &snippets);
+        assert_eq!(res_alone, "Best regards,\nAli\nLead Developer");
+
+        // 3. End to end cleanup with punctuation and dynamic snippet
         let transcript = Transcript {
-            text: "Please find the report attached, my signature".to_string(),
+            text: "Please find the report attached, my signature.".to_string(),
             language: "en".to_string(),
             provider: "groq".to_string(),
             model: "whisper-large-v3-turbo".to_string(),
@@ -662,7 +694,10 @@ mod tests {
             snippets,
         };
         let cleaned = RuleBasedCleaner::clean(&transcript, &options).unwrap();
-        assert!(cleaned.cleaned_text.contains("Best regards,"));
+        assert_eq!(
+            cleaned.cleaned_text,
+            "Please find the report attached,\nBest regards,\nAli\nLead Developer"
+        );
     }
 
     #[test]

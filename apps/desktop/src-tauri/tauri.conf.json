@@ -22,13 +22,13 @@
         "fullscreen": false,
         "decorations": true,
         "center": true,
-        "visible": true
+        "visible": false
       },
       {
         "label": "recorder",
         "title": "Forge Wisper Recorder",
         "url": "/#recorder",
-        "width": 110,
+        "width": 108,
         "height": 36,
         "resizable": false,
         "fullscreen": false,
@@ -37,6 +37,7 @@
         "alwaysOnTop": true,
         "visible": false,
         "skipTaskbar": true,
+        "focus": false,
         "shadow": false
       }
     ],

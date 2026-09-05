@@ -77,6 +77,65 @@ impl OutputEngine {
         Ok(())
     }
 
+    /// Injects incremental delta text directly into the active focused cursor in real-time
+    pub fn type_text_delta(delta: &str, char_delay_ms: u64) -> Result<(), OutputError> {
+        if delta.is_empty() {
+            return Ok(());
+        }
+
+        let mut enigo = Enigo::new(&Settings::default())
+            .map_err(|e| OutputError::SimulationError(e.to_string()))?;
+
+        if char_delay_ms == 0 {
+            enigo.text(delta)
+                .map_err(|e| OutputError::SimulationError(e.to_string()))?;
+        } else {
+            for ch in delta.chars() {
+                enigo.text(&ch.to_string())
+                    .map_err(|e| OutputError::SimulationError(e.to_string()))?;
+                sleep(Duration::from_millis(char_delay_ms));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Simulates pressing backspace N times to adjust partial recognition if needed
+    pub fn type_backspaces(count: usize) -> Result<(), OutputError> {
+        if count == 0 {
+            return Ok(());
+        }
+
+        let mut enigo = Enigo::new(&Settings::default())
+            .map_err(|e| OutputError::SimulationError(e.to_string()))?;
+
+        for _ in 0..count {
+            let _ = enigo.key(Key::Backspace, Direction::Click);
+            sleep(Duration::from_millis(4));
+        }
+
+        Ok(())
+    }
+
+    /// Progressive typing into the active window with smooth natural keystrokes
+    pub fn type_text_progressive(text: &str, char_delay_ms: u64) -> Result<PasteOutcome, OutputError> {
+        if text.is_empty() {
+            return Ok(PasteOutcome::Pasted);
+        }
+
+        // Always ensure text is copied to clipboard for safety
+        let _ = Self::copy_to_clipboard(text);
+
+        let delay = if char_delay_ms == 0 { 8 } else { char_delay_ms };
+        match Self::type_text_delta(text, delay) {
+            Ok(()) => Ok(PasteOutcome::Pasted),
+            Err(e) => {
+                eprintln!("[Forge Output] Direct typing failed ({:?}), falling back to simulated paste.", e);
+                Self::paste_text(text)
+            }
+        }
+    }
+
     /// Complete safe paste sequence: Copy to clipboard -> simulate Ctrl+V.
     /// If simulated key injection fails, the text is guaranteed to remain on the clipboard.
     pub fn paste_text(text: &str) -> Result<PasteOutcome, OutputError> {

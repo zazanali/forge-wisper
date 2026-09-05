@@ -7,6 +7,7 @@ import type {
   HistoryRecord,
   ProcessingState,
 } from "../types";
+import { SUPPORTED_LANGUAGES } from "../types";
 import {
   Mic,
   Square,
@@ -40,16 +41,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [showFormatDropdown, setShowFormatDropdown] = useState(false);
   const [showMicDropdown, setShowMicDropdown] = useState(false);
   const [showModeDropdown, setShowModeDropdown] = useState(false);
+  const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
+  const [showTopLanguageDropdown, setShowTopLanguageDropdown] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
   // Audio level and live timer
   const [audioLevel, setAudioLevel] = useState(0.25);
   const [durationSecs, setDurationSecs] = useState(0);
+  const [liveSpokenText, setLiveSpokenText] = useState("");
 
   const formatDropdownRef = useRef<HTMLDivElement>(null);
   const timeframeDropdownRef = useRef<HTMLDivElement>(null);
   const micDropdownRef = useRef<HTMLDivElement>(null);
   const modeDropdownRef = useRef<HTMLDivElement>(null);
+  const languageDropdownRef = useRef<HTMLDivElement>(null);
+  const topLanguageDropdownRef = useRef<HTMLDivElement>(null);
 
   // Metrics
   const [metrics, setMetrics] = useState({
@@ -65,7 +71,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       setProcState(state);
       if (state === "Success" || state === "Idle" || state === "Error") {
         loadData();
+        if (state === "Idle" || state === "Success") {
+          setLiveSpokenText("");
+        }
       }
+    });
+
+    const unlistenLive = api.onLiveTranscript((payload) => {
+      setLiveSpokenText(payload.text);
     });
 
     // Close dropdowns on outside click
@@ -82,6 +95,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       if (modeDropdownRef.current && !modeDropdownRef.current.contains(e.target as Node)) {
         setShowModeDropdown(false);
       }
+      if (languageDropdownRef.current && !languageDropdownRef.current.contains(e.target as Node)) {
+        setShowLanguageDropdown(false);
+      }
+      if (topLanguageDropdownRef.current && !topLanguageDropdownRef.current.contains(e.target as Node)) {
+        setShowTopLanguageDropdown(false);
+      }
       setActiveMenuId(null);
     };
 
@@ -89,6 +108,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
     return () => {
       unlisten.then((fn) => fn());
+      unlistenLive.then((fn) => fn());
       window.removeEventListener("click", handleOutsideClick);
     };
   }, []);
@@ -284,6 +304,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     }
   };
 
+  const handleSelectLanguage = async (code: string) => {
+    if (!settings) return;
+    const updated = { ...settings, language: code };
+    try {
+      await api.updateSettings(updated);
+      setSettings(updated);
+      setShowLanguageDropdown(false);
+    } catch (err) {
+      console.error("Failed to update language:", err);
+    }
+  };
+
+  const getSelectedLanguageDisplay = () => {
+    const code = settings?.language || "auto";
+    const found = SUPPORTED_LANGUAGES.find((l) => l.code === code);
+    if (!found || code === "auto") {
+      return { flag: "🌐", name: "Auto-Detect", code: "auto" };
+    }
+    return found;
+  };
+
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60);
     const s = secs % 60;
@@ -305,8 +346,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   // Latest dictation sample text or live buffer
   const latestDictationText =
-    history[0]?.final_text ||
-    (isRecording ? "Listening to speech..." : `Ready to dictate. Press ${readableHotkey} to speak.`);
+    (isRecording || isProcessing) && liveSpokenText
+      ? liveSpokenText
+      : history[0]?.final_text ||
+        (isRecording ? "Listening to speech & typing in real-time..." : `Ready to dictate. Press ${readableHotkey} to speak.`);
 
   const parseSavedTime = (str: string) => {
     const clean = str.replace("~", "").trim();
@@ -359,6 +402,116 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               {formatModelDisplayName(settings?.model, settings?.provider)}
             </span>
           </button>
+
+          {/* Quick Language Switcher Dropdown */}
+          <div className="relative" ref={topLanguageDropdownRef}>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowTopLanguageDropdown(!showTopLanguageDropdown);
+              }}
+              title="Active Speech Recognition Language (Click to quickly change language)"
+              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-[6px] border text-[13px] cursor-pointer transition-all ${
+                showTopLanguageDropdown
+                  ? "bg-[var(--surface-elevated)] border-[var(--accent)] ring-1 ring-[var(--accent)]"
+                  : "bg-[var(--surface-primary)] hover:bg-[var(--surface-elevated)] border-[var(--border)]"
+              }`}
+            >
+              <span className="text-[13px] leading-none">{getSelectedLanguageDisplay().flag}</span>
+              <span className="font-medium text-[var(--text-primary)]">
+                {getSelectedLanguageDisplay().name}
+              </span>
+              {(!settings?.language || settings.language === "en") ? (
+                <span className="px-1.5 py-0.2 rounded-[4px] bg-[var(--accent-subtle)] text-[11px] font-mono text-[var(--accent)] border border-[var(--accent-border)] font-semibold">
+                  EN (Locked)
+                </span>
+              ) : settings?.language !== "auto" ? (
+                <span className="px-1.5 py-0.2 rounded-[4px] bg-[var(--accent-subtle)] text-[11px] font-mono text-[var(--accent)] border border-[var(--accent-border)] font-semibold uppercase">
+                  {settings.language}
+                </span>
+              ) : (
+                <span className="px-1.5 py-0.2 rounded-[4px] bg-[var(--surface-elevated)] text-[11px] font-mono text-[var(--text-muted)] border border-[var(--border)]">
+                  Auto
+                </span>
+              )}
+              <ChevronDown className={`w-3 h-3 text-[var(--text-muted)] shrink-0 transition-transform ${showTopLanguageDropdown ? "rotate-180" : ""}`} />
+            </button>
+
+            {showTopLanguageDropdown && (
+              <div className="absolute left-0 mt-1.5 w-64 max-h-72 overflow-y-auto py-1.5 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-[8px] shadow-xl z-40 font-sans text-[12px] animate-fadeIn">
+                <div className="px-3 py-1 text-[11px] font-mono text-[var(--text-muted)] uppercase tracking-wider">
+                  Speech Language
+                </div>
+
+                {/* English First / Primary Option */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleSelectLanguage("en");
+                    setShowTopLanguageDropdown(false);
+                  }}
+                  className={`w-full text-left px-3 py-2 hover:bg-[var(--surface-hover)] transition-colors flex items-center justify-between ${
+                    (!settings?.language || settings.language === "en") ? "bg-[var(--accent-subtle)] text-[var(--accent)] font-semibold" : "text-[var(--text-primary)]"
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="text-[14px]">🇺🇸</span>
+                    <span>English (Recommended)</span>
+                  </span>
+                  {(!settings?.language || settings.language === "en") && <Check className="w-3.5 h-3.5 text-[var(--accent)]" />}
+                </button>
+
+                <div className="border-t border-[var(--border-subtle)] my-1" />
+
+                {[
+                  { code: "auto", name: "Auto-Detect All", flag: "🌐" },
+                  { code: "ur", name: "Urdu (اردو)", flag: "🇵🇰" },
+                  { code: "hi", name: "Hindi (हिन्दी)", flag: "🇮🇳" },
+                  { code: "ar", name: "Arabic (العربية)", flag: "🇸🇦" },
+                  { code: "es", name: "Spanish", flag: "🇪🇸" },
+                  { code: "fr", name: "French", flag: "🇫🇷" },
+                  { code: "de", name: "German", flag: "🇩🇪" },
+                  { code: "zh", name: "Chinese (中文)", flag: "🇨🇳" },
+                  { code: "ja", name: "Japanese (日本語)", flag: "🇯🇵" },
+                ].map((lang) => {
+                  const isSelected = settings?.language === lang.code;
+                  return (
+                    <button
+                      key={lang.code}
+                      type="button"
+                      onClick={() => {
+                        handleSelectLanguage(lang.code);
+                        setShowTopLanguageDropdown(false);
+                      }}
+                      className={`w-full text-left px-3 py-1.5 hover:bg-[var(--surface-hover)] transition-colors flex items-center justify-between ${
+                        isSelected ? "text-[var(--accent)] font-semibold" : "text-[var(--text-primary)]"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="text-[13px]">{lang.flag}</span>
+                        <span className="truncate">{lang.name}</span>
+                      </span>
+                      {isSelected && <Check className="w-3.5 h-3.5 text-[var(--accent)]" />}
+                    </button>
+                  );
+                })}
+
+                <div className="border-t border-[var(--border-subtle)] my-1" />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowTopLanguageDropdown(false);
+                    onNavigate("settings");
+                  }}
+                  className="w-full text-left px-3 py-1.5 hover:bg-[var(--surface-hover)] text-[var(--accent)] font-medium transition-colors flex items-center justify-between"
+                >
+                  <span>More Languages & Settings &rarr;</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right Side: Keycaps, Dictate Button & Settings */}
@@ -732,6 +885,87 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                         {dev.name}
                       </button>
                     ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 4. Language Selector */}
+            <div className="flex items-center gap-2">
+              <span className="text-[var(--text-muted)] font-medium">Language</span>
+              <div className="relative" ref={languageDropdownRef}>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowLanguageDropdown(!showLanguageDropdown);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[5px] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] border border-[var(--border)] text-[12px] text-[var(--text-primary)] font-medium transition-colors cursor-pointer max-w-[200px]"
+                >
+                  <span className="text-[12px]">{getSelectedLanguageDisplay().flag}</span>
+                  <span className="truncate">
+                    {getSelectedLanguageDisplay().name}
+                  </span>
+                  <ChevronDown className="w-3 h-3 text-[var(--text-muted)] shrink-0" />
+                </button>
+
+                {showLanguageDropdown && (
+                  <div className="absolute left-0 mt-1 w-56 max-h-52 overflow-y-auto py-1 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-[6px] shadow-lg z-30 font-sans text-[12px]">
+                    <button
+                      onClick={() => handleSelectLanguage("auto")}
+                      className={`w-full text-left px-3 py-1.5 hover:bg-[var(--surface-hover)] transition-colors flex items-center justify-between ${
+                        (!settings?.language || settings.language === "auto") ? "text-[var(--accent)] font-medium" : "text-[var(--text-primary)]"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span>🌐</span>
+                        <span>Auto-Detect</span>
+                      </span>
+                      {(!settings?.language || settings.language === "auto") && <Check className="w-3 h-3 text-[var(--accent)]" />}
+                    </button>
+
+                    <div className="border-t border-[var(--border-subtle)] my-1" />
+
+                    {[
+                      { code: "en", name: "English", flag: "🇺🇸" },
+                      { code: "ur", name: "Urdu (اردو)", flag: "🇵🇰" },
+                      { code: "hi", name: "Hindi (हिन्दी)", flag: "🇮🇳" },
+                      { code: "es", name: "Spanish", flag: "🇪🇸" },
+                      { code: "fr", name: "French", flag: "🇫🇷" },
+                      { code: "de", name: "German", flag: "🇩🇪" },
+                      { code: "ar", name: "Arabic (العربية)", flag: "🇸🇦" },
+                      { code: "zh", name: "Chinese (中文)", flag: "🇨🇳" },
+                      { code: "ja", name: "Japanese (日本語)", flag: "🇯🇵" },
+                      { code: "pt", name: "Portuguese", flag: "🇧🇷" },
+                      { code: "ru", name: "Russian (Русский)", flag: "🇷🇺" },
+                    ].map((lang) => (
+                      <button
+                        key={lang.code}
+                        onClick={() => handleSelectLanguage(lang.code)}
+                        className={`w-full text-left px-3 py-1.5 hover:bg-[var(--surface-hover)] transition-colors flex items-center justify-between ${
+                          settings?.language === lang.code ? "text-[var(--accent)] font-medium" : "text-[var(--text-primary)]"
+                        }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <span>{lang.flag}</span>
+                          <span className="truncate">{lang.name}</span>
+                        </span>
+                        {settings?.language === lang.code && <Check className="w-3 h-3 text-[var(--accent)]" />}
+                      </button>
+                    ))}
+
+                    <div className="border-t border-[var(--border-subtle)] my-1" />
+
+                    <button
+                      onClick={() => {
+                        setShowLanguageDropdown(false);
+                        onNavigate("settings");
+                      }}
+                      className="w-full text-left px-3 py-1.5 hover:bg-[var(--surface-hover)] text-[var(--accent)] font-medium transition-colors text-[11px] flex items-center justify-between"
+                    >
+                      <span>More in Settings (99+)...</span>
+                      <span>→</span>
+                    </button>
                   </div>
                 )}
               </div>

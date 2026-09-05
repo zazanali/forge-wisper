@@ -16,6 +16,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowRight,
+  Edit2,
+  X,
 } from "lucide-react";
 
 // Helper for smart sliding-window pagination with ellipsis
@@ -82,6 +84,7 @@ export const DictionaryView: React.FC = () => {
   // New Snippet Form State
   const [newSnippetTrigger, setNewSnippetTrigger] = useState("");
   const [newSnippetValue, setNewSnippetValue] = useState("");
+  const [editingSnippetKey, setEditingSnippetKey] = useState<string | null>(null);
 
   // Live Test Box State
   const [testInput, setTestInput] = useState("");
@@ -135,20 +138,43 @@ export const DictionaryView: React.FC = () => {
   // Snippet / Macro Handlers
   const addSnippet = () => {
     if (!settings || !newSnippetTrigger.trim() || !newSnippetValue.trim()) return;
-    const updatedSnippets = {
-      ...settings.snippets,
-      [newSnippetTrigger.trim().toLowerCase()]: newSnippetValue.trim(),
-    };
+    const cleanTrigger = newSnippetTrigger.trim().toLowerCase();
+    const updatedSnippets = { ...settings.snippets };
+
+    // If updating an existing snippet whose trigger was renamed, delete old key
+    if (editingSnippetKey && editingSnippetKey !== cleanTrigger) {
+      delete updatedSnippets[editingSnippetKey];
+    }
+
+    updatedSnippets[cleanTrigger] = newSnippetValue.trim();
     const updatedSettings = { ...settings, snippets: updatedSnippets };
     handleSave(updatedSettings);
     setNewSnippetTrigger("");
     setNewSnippetValue("");
+    setEditingSnippetKey(null);
+  };
+
+  const startEditSnippet = (trigger: string, value: string) => {
+    setNewSnippetTrigger(trigger);
+    setNewSnippetValue(value);
+    setEditingSnippetKey(trigger);
+  };
+
+  const cancelEditSnippet = () => {
+    setNewSnippetTrigger("");
+    setNewSnippetValue("");
+    setEditingSnippetKey(null);
   };
 
   const removeSnippet = (key: string) => {
     if (!settings) return;
     const updatedSnippets = { ...settings.snippets };
     delete updatedSnippets[key];
+    if (editingSnippetKey === key) {
+      setEditingSnippetKey(null);
+      setNewSnippetTrigger("");
+      setNewSnippetValue("");
+    }
     const updatedSettings = { ...settings, snippets: updatedSnippets };
     handleSave(updatedSettings);
   };
@@ -159,7 +185,7 @@ export const DictionaryView: React.FC = () => {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  // Live Test Sandbox Simulation
+  // Live Test Sandbox Simulation (matches exact next-line expansion)
   useEffect(() => {
     if (!settings || !testInput) {
       setTestOutput("");
@@ -167,21 +193,28 @@ export const DictionaryView: React.FC = () => {
     }
     let res = testInput;
 
-    // 1. Expand Snippets
-    if (settings.snippets) {
-      for (const [trigger, val] of Object.entries(settings.snippets)) {
-        if (!trigger.trim()) continue;
-        const re = new RegExp(`\\b${trigger.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi");
-        res = res.replace(re, val);
-      }
-    }
-
-    // 2. Apply Word Dictionary
+    // 1. Apply Word Dictionary
     if (settings.dictionary) {
       for (const [spoken, pref] of Object.entries(settings.dictionary)) {
         if (!spoken.trim()) continue;
         const re = new RegExp(`\\b${spoken.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi");
         res = res.replace(re, pref);
+      }
+    }
+
+    // 2. Expand Dynamic Voice Snippets onto next line
+    if (settings.snippets) {
+      for (const [trigger, val] of Object.entries(settings.snippets)) {
+        if (!trigger.trim()) continue;
+        const escaped = trigger.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const re = new RegExp(`\\b${escaped}\\b[\\.!?]?`, "gi");
+        res = res.replace(re, (_match, offset, fullStr) => {
+          const prefix = fullStr.slice(0, offset).trimEnd();
+          if (prefix.length > 0 && !prefix.endsWith("\n")) {
+            return `\n${val}`;
+          }
+          return val;
+        });
       }
     }
 
@@ -506,13 +539,16 @@ export const DictionaryView: React.FC = () => {
       {/* TAB 2: Voice Snippets & Macros */}
       {activeSubTab === "snippets" && (
         <div className="space-y-4">
-          {/* Add Snippet Card */}
+          {/* Add / Edit Snippet Card */}
           <div className="forge-card p-4 space-y-3 rounded-[8px] border border-[var(--border)] bg-[var(--surface-primary)]">
             <div className="flex items-center justify-between">
               <h3 className="text-[14px] font-medium text-[var(--text-primary)] flex items-center gap-2">
-                <FileText className="w-4 h-4 text-[var(--accent)]" /> Add Voice Snippet / Prompt Shortcut
+                <FileText className="w-4 h-4 text-[var(--accent)]" />
+                {editingSnippetKey ? `Edit Voice Snippet: "${editingSnippetKey}"` : "Add Dynamic Voice Snippet / Prompt Macro"}
               </h3>
-              <span className="text-[11px] font-mono text-[var(--accent)] font-medium">Macro Expansion</span>
+              <span className="text-[11px] font-mono text-[var(--accent)] font-medium">
+                {editingSnippetKey ? "Editing Macro" : "Dynamic Macro"}
+              </span>
             </div>
 
             <div className="space-y-3">
@@ -524,14 +560,14 @@ export const DictionaryView: React.FC = () => {
                   type="text"
                   value={newSnippetTrigger}
                   onChange={(e) => setNewSnippetTrigger(e.target.value)}
-                  placeholder="e.g. 'my signature', 'email signoff', 'bug report template'"
+                  placeholder="e.g. 'my signature', 'email signoff', 'bug template', 'meeting link'"
                   className="w-full px-3 py-2 bg-[var(--surface-primary)] border border-[var(--border)] rounded-[7px] text-[13px] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] font-mono placeholder:text-[var(--text-muted)]"
                 />
               </div>
 
               <div>
                 <label className="text-[12px] text-[var(--text-secondary)] block mb-1 font-mono">
-                  Expanded Text Template (What gets inserted)
+                  Expanded Text Template (Inserted on the next line when spoken)
                 </label>
                 <textarea
                   rows={4}
@@ -542,14 +578,31 @@ export const DictionaryView: React.FC = () => {
                 />
               </div>
 
-              <div className="pt-1 flex justify-end">
+              <div className="pt-1 flex items-center justify-end gap-2">
+                {editingSnippetKey && (
+                  <button
+                    type="button"
+                    onClick={cancelEditSnippet}
+                    className="px-3 py-2 rounded-[6px] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] border border-[var(--border)] text-[12px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all cursor-pointer flex items-center gap-1"
+                  >
+                    <X className="w-3.5 h-3.5" /> Cancel
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={addSnippet}
                   disabled={!newSnippetTrigger.trim() || !newSnippetValue.trim()}
                   className="px-4 py-2 btn-primary text-[13px] font-medium disabled:opacity-40 flex items-center gap-1.5 cursor-pointer"
                 >
-                  <Plus className="w-4 h-4" /> Save Voice Snippet
+                  {editingSnippetKey ? (
+                    <>
+                      <Check className="w-4 h-4" /> Update Voice Snippet
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" /> Save Voice Snippet
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -588,7 +641,7 @@ export const DictionaryView: React.FC = () => {
 
             {filteredSnippets.length === 0 ? (
               <div className="forge-card p-8 text-center text-[var(--text-muted)] text-[13px] rounded-[8px] border border-[var(--border)] bg-[var(--surface-primary)]">
-                No voice snippets configured yet. Add your first prompt or signature shortcut above.
+                No voice snippets configured yet. Add your first custom voice prompt shortcut or signature above.
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
@@ -602,6 +655,14 @@ export const DictionaryView: React.FC = () => {
                         &quot;{trigger}&quot;
                       </span>
                       <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => startEditSnippet(trigger, value)}
+                          className="p-1 rounded-[5px] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--accent)] border border-[var(--border)] transition-colors cursor-pointer"
+                          title="Edit snippet"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
                         <button
                           type="button"
                           onClick={() => copyText(value, trigger)}
