@@ -63,8 +63,8 @@ jobs:
             ## Forge Wisper Desktop Setup (${{ github.ref_name }})
             
             Download the official cross-platform installer below:
-            - 🪟 **Windows**: `Forge-Wisper_${{ github.ref_name }}_x64-setup.exe`
-            - 🍎 **macOS**: `Forge-Wisper_${{ github.ref_name }}_aarch64.dmg` (Apple Silicon M1/M2/M3/M4 & Intel)
+            - 🪟 **Windows**: `Forge.Wisper_0.1.2_x64-setup.exe`
+            - 🍎 **macOS**: `Forge.Wisper_0.1.2_aarch64.dmg` (Apple Silicon M1/M2/M3/M4 & Intel)
             
             ### ✨ What's New in This Release
             - ⚡ **Real-Time Cursor Dictation**: Streams and types transcribed speech directly into your active cursor without lag or intrusive text blocking.

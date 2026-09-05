@@ -26,8 +26,8 @@ Download the latest production release of **Forge Wisper** for your operating sy
 
 | Platform | Installer Type | Architecture | Live Download Counter | Direct Download Link |
 | :--- | :--- | :--- | :--- | :--- |
-| **🪟 Windows** | `.exe` (NSIS Installer) | `x86_64` (Intel/AMD) / ARM64 | [![Windows Downloads](https://img.shields.io/github/downloads/zazanali/forge-wisper/latest/Forge.Wisper_0.1.1_x64-setup.exe?displayAssetName=false&label=Windows%20Downloads&logo=windows&logoColor=white&color=0078D6)](https://github.com/zazanali/forge-wisper/releases/latest) | [**Download for Windows (.exe)**](https://github.com/zazanali/forge-wisper/releases/latest) |
-| **🍎 macOS** | `.dmg` / `.app` Bundle | Apple Silicon (`aarch64` M1–M4) & Intel (`x86_64`) | [![macOS Downloads](https://img.shields.io/github/downloads/zazanali/forge-wisper/latest/Forge.Wisper_0.1.1_aarch64.dmg?displayAssetName=false&label=macOS%20Downloads&logo=apple&logoColor=white&color=333333)](https://github.com/zazanali/forge-wisper/releases/latest) | [**Download for macOS (.dmg)**](https://github.com/zazanali/forge-wisper/releases/latest) |
+| **🪟 Windows** | `.exe` (NSIS Installer) | `x86_64` (Intel/AMD) / ARM64 | [![Windows Downloads](https://img.shields.io/github/downloads/zazanali/forge-wisper/latest/Forge.Wisper_0.1.2_x64-setup.exe?displayAssetName=false&label=Windows%20Downloads&logo=windows&logoColor=white&color=0078D6)](https://github.com/zazanali/forge-wisper/releases/latest) | [**Download for Windows (.exe)**](https://github.com/zazanali/forge-wisper/releases/latest) |
+| **🍎 macOS** | `.dmg` / `.app` Bundle | Apple Silicon (`aarch64` M1–M4) & Intel (`x86_64`) | [![macOS Downloads](https://img.shields.io/github/downloads/zazanali/forge-wisper/latest/Forge.Wisper_0.1.2_aarch64.dmg?displayAssetName=false&label=macOS%20Downloads&logo=apple&logoColor=white&color=333333)](https://github.com/zazanali/forge-wisper/releases/latest) | [**Download for macOS (.dmg)**](https://github.com/zazanali/forge-wisper/releases/latest) |
 | **🐧 Linux** | `.deb` / `.AppImage` | `x86_64` | 🚧 *In Progress* | [**View Release Notes**](https://github.com/zazanali/forge-wisper/releases) |
 
 > [!TIP]
