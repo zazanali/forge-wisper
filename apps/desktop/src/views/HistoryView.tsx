@@ -131,8 +131,8 @@ export const HistoryView: React.FC = () => {
               className="forge-card p-3.5 space-y-2.5 rounded-[8px] border border-[var(--border)] bg-[var(--surface-primary)] transition-all"
             >
               {/* Top metadata row */}
-              <div className="flex items-center justify-between text-[12px] text-[var(--text-secondary)] font-sans">
-                <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-between text-[12px] text-[var(--text-secondary)] font-sans gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Clock className="w-3.5 h-3.5 text-[var(--text-muted)]" />
                   <span>
                     {new Date(item.created_at).toLocaleString([], {
@@ -175,7 +175,7 @@ export const HistoryView: React.FC = () => {
               </div>
 
               {/* Actions row */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pt-2 border-t border-[var(--border-subtle)] text-[12px] gap-2">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pt-2 border-t border-[var(--border-subtle)] text-[12px] gap-2.5">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-[var(--text-muted)]">Reprocess:</span>
                   {(["Clean", "Structured", "Smart", "Raw"] as FormattingMode[]).map(
@@ -192,7 +192,7 @@ export const HistoryView: React.FC = () => {
                   )}
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
                   <button
                     onClick={() => copyText(item.raw_text, `raw-${item.id}`)}
                     className="px-2.5 py-1 rounded-[6px] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)] transition-colors inline-flex items-center gap-1 font-medium cursor-pointer"

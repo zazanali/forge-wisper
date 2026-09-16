@@ -59,11 +59,20 @@ Get the latest official release for your operating system from the **[GitHub Rel
 - **⚡ Real-Time Cursor Dictation**:
   - Transcribed text is typed directly into whatever text box, input field, or code editor you clicked on.
   - Zero intrusive preview popups blocking your screen — sleek minimal floating HUD only.
-- **🌐 99+ Multi-Language Engine & 1-Click Quick Switcher**:
-  - Full support for all 99+ languages recognized by Whisper v3 (English, Urdu, Hindi, Arabic, Spanish, French, German, Chinese, Japanese, and Auto-Detect).
-  - **1-Click Header Toolbar Switcher**: Change speech recognition language instantly without opening settings.
-  - **Dedicated English Attention Head Locking**: When dictating in English, the engine explicitly locks Whisper's attention heads to `"en"`, eliminating accented confusion that previously caused English speech to be transcribed into foreign scripts (e.g. Urdu/Arabic script).
-  - Automatic non-Latin script token cleaner to keep English output 100% clean.
+- **🔄 Antigravity-Style In-App Online Updater**:
+  - Automatically queries GitHub Releases API in the background with zero impact on startup speed.
+  - **Floating Update Banner**: Unobtrusive top-centered notification when a new version is detected.
+  - **"What's New" Release Modal**: Rich changelog preview, published date, installer size breakdown, and release highlights.
+  - **Real-Time Download Streaming**: Live progress bar tracking downloaded megabytes and percentage (`forge://update-download-progress`).
+  - **1-Click Seamless Installation**: Launches the installer in a resilient detached process (`CREATE_BREAKAWAY_FROM_JOB | DETACHED_PROCESS` on Windows, native `.dmg` on macOS) and smoothly restarts the application.
+  - **Manual Check for Updates**: Instant check button in Settings with live version status badges (*"Up to Date"*, *"Checking..."*, or *"Update Available"*).
+- **🌐 45+ Multi-Language Engine with Live Search & Auto-Detect**:
+  - Full support for 45+ world languages (English, Urdu, Hindi, Arabic, Spanish, French, German, Chinese, Japanese, Russian, Turkish, etc.) plus intelligent "Auto-Detect".
+  - **Live Search Dropdown**: Real-time language search picker on the Dashboard for instant selection.
+  - **Script-Aware Hallucination Protection**: Non-Latin script filtering is language-aware — foreign scripts (such as Urdu or Arabic) are preserved when speaking those languages, while accidental foreign scripts during English dictation are cleanly scrubbed.
+  - **Reprocess with Target Language**: Re-transcribe historical audio with on-the-fly language switching.
+- **⚡ Ultra-Fast In-Memory Secret Caching (<10ms Settings Load)**:
+  - Eliminated 5-6 second UI freezes when navigating pages or saving API keys through atomic in-memory credential caching with native OS vault synchronization (Windows Credential Manager & macOS Keychain).
 - **📝 100% Dynamic Voice Snippets & Macro Expansions**:
   - Fully dynamic voice shortcuts and macros configured directly in the app.
   - **Next-Line Expansion**: Spoken voice triggers expand cleanly onto new lines (`\n\n`) instead of appending awkwardly to the previous sentence.
@@ -75,13 +84,18 @@ Get the latest official release for your operating system from the **[GitHub Rel
   - **Groq Cloud LPUs**: Sub-second cloud transcription with `whisper-large-v3-turbo`.
   - **100% Offline Local Whisper**: On-device Whisper (GGUF / whisper.cpp) for complete offline privacy.
 - **📊 Dynamic Accomplishment Metrics & SQLite History**:
-  - Real-time analytics tracking Total Words Transcribed, Time Saved, Typing WPM, and Active Sessions.
-  - Time filters for **Today**, **This Week**, and **All Time**.
+  - Real-time analytics tracking Total Words Transcribed, Time Saved, Typing WPM, and Active Sessions based on raw recorded PCM duration.
+  - Timeframe filters for **Today**, **This Week**, and **All Time** with persistent state.
   - Searchable local SQLite database with customizable retention policies (7 days, 30 days, or indefinite).
+- **📱 Fluid Device-Adaptive Responsive Layout**:
+  - Fully adaptive layouts supporting mobile, tablet, laptop, and multi-monitor desktop setups (`sm`, `md`, `lg`, `xl`).
+  - Slide-over collapsible drawer navigation for compact displays with backdrop blur and touch-friendly controls.
 - **🚀 Zero-Hang Startup**:
   - Instant background initialization on system startup via Windows Registry and macOS LaunchAgents with zero UI freeze.
 - **🔒 Enterprise-Grade Key Storage**:
   - API keys are encrypted and stored in native OS secret vaults (**Windows Credential Manager & macOS Keychain**).
+- **💬 Official Community & Support Hub**:
+  - Integrated [community.ainetworkx.com](https://community.ainetworkx.com) forum for sharing custom voice macros, workflows, feature requests, and community support.
 
 ---
 
@@ -220,6 +234,16 @@ cargo test --package forge-cleanup
 - **No Cloud Audio Storage**: Audio recordings are processed in memory and discarded immediately after transcription.
 - **Secure Key Storage**: API credentials (such as Groq keys) are stored using native OS secret vaults (Windows Credential Manager, macOS Keychain, Linux Secret Service) via the `keyring` crate.
 - **Local-First Processing**: When using **Local Whisper**, 100% of speech recognition and text cleaning happens entirely on your local CPU/GPU with zero network requests.
+
+---
+
+## 💬 Community & Support
+
+Join the official **Forge Wisper & AI NetworkX Community** to discuss new features, exchange custom voice macros, report issues, and collaborate:
+
+- 🌐 **Community Forum**: [community.ainetworkx.com](https://community.ainetworkx.com)
+- 🐛 **Issue Tracker**: [GitHub Issues](https://github.com/zazanali/forge-wisper/issues)
+- 💡 **Discussions**: [GitHub Discussions](https://github.com/zazanali/forge-wisper/discussions)
 
 ---
 

@@ -8,6 +8,8 @@ import type {
   LocalModelInfo,
   ProcessingState,
   FormattingMode,
+  UpdateInfo,
+  UpdateDownloadProgress,
 } from "../types";
 
 export const api = {
@@ -98,5 +100,27 @@ export const api = {
 
   onToast: (callback: (message: string) => void) => {
     return listen<string>("forge://toast", (event) => callback(event.payload));
+  },
+
+  checkForUpdates: (force = false) =>
+    invoke<UpdateInfo>("check_for_updates", { force }),
+  downloadAndApplyUpdate: (downloadUrl: string, assetName?: string) =>
+    invoke<string>("download_and_apply_update", { downloadUrl, assetName }),
+  relaunchAndInstallUpdate: (installerPath: string) =>
+    invoke<void>("relaunch_and_install_update", { installerPath }),
+
+  onUpdateAvailable: (callback: (payload: UpdateInfo) => void) => {
+    return listen<UpdateInfo>("forge://update-available", (event) =>
+      callback(event.payload)
+    );
+  },
+
+  onUpdateDownloadProgress: (
+    callback: (payload: UpdateDownloadProgress) => void
+  ) => {
+    return listen<UpdateDownloadProgress>(
+      "forge://update-download-progress",
+      (event) => callback(event.payload)
+    );
   },
 };

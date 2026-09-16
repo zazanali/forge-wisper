@@ -1,10 +1,12 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{SampleFormat, StreamConfig};
 use hound::{WavSpec, WavWriter};
+use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::io::Cursor;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -34,7 +36,22 @@ pub struct AudioDeviceInfo {
     pub is_default: bool,
 }
 
+lazy_static! {
+    static ref DEVICE_CACHE: Mutex<Option<(Instant, Vec<AudioDeviceInfo>)>> = Mutex::new(None);
+}
+
+const DEVICE_CACHE_TTL: Duration = Duration::from_secs(30);
+
 pub fn list_input_devices() -> Result<Vec<AudioDeviceInfo>, AudioError> {
+    // Fast return from cache if fresh (< 30s)
+    if let Ok(guard) = DEVICE_CACHE.lock() {
+        if let Some((timestamp, ref devices)) = *guard {
+            if timestamp.elapsed() < DEVICE_CACHE_TTL && !devices.is_empty() {
+                return Ok(devices.clone());
+            }
+        }
+    }
+
     let host = cpal::default_host();
     let default_device_name = host
         .default_input_device()
@@ -52,7 +69,17 @@ pub fn list_input_devices() -> Result<Vec<AudioDeviceInfo>, AudioError> {
         }
     }
 
+    if let Ok(mut guard) = DEVICE_CACHE.lock() {
+        *guard = Some((Instant::now(), result.clone()));
+    }
+
     Ok(result)
+}
+
+pub fn invalidate_device_cache() {
+    if let Ok(mut guard) = DEVICE_CACHE.lock() {
+        *guard = None;
+    }
 }
 
 pub struct AudioRecorder {
@@ -209,6 +236,11 @@ impl AudioRecorder {
         } else {
             0.0
         }
+    }
+
+    /// Returns the duration in milliseconds of audio captured in the buffer
+    pub fn get_buffer_duration_ms(&self) -> u64 {
+        (self.get_buffer_duration_secs() * 1000.0) as u64
     }
 
     /// Takes a non-destructive in-memory snapshot of the currently recorded audio and encodes it to standard 16kHz WAV

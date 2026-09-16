@@ -1,5 +1,6 @@
 pub mod commands;
 pub mod state;
+pub mod updater;
 
 use commands::*;
 use state::PipelineState;
@@ -149,6 +150,18 @@ pub fn run() {
                     .build(app)?;
             }
 
+            // Background check for online updates (runs 5 seconds after launch to never block UI)
+            let app_handle_for_update = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                if let Ok(info) = updater::check_github_update("zazanali/forge-wisper", false).await {
+                    if info.has_update {
+                        use tauri::Emitter;
+                        let _ = app_handle_for_update.emit("forge://update-available", &info);
+                    }
+                }
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -175,7 +188,10 @@ pub fn run() {
             get_hardware_recommendation,
             open_url,
             get_autostart_status,
-            set_autostart_status
+            set_autostart_status,
+            check_for_updates,
+            download_and_apply_update,
+            relaunch_and_install_update
         ])
         .run(tauri::generate_context!())
         .expect("error while running Forge Wisper Tauri application");
@@ -487,25 +503,33 @@ pub fn parse_hotkey_to_vks(hotkey_str: &str) -> Vec<i32> {
 fn start_native_windows_hotkey_listener(app: tauri::AppHandle) {
     std::thread::spawn(move || {
         let mut was_combo_pressed = false;
+        let mut loop_counter: usize = 0;
+        let mut cached_hotkey_str = String::new();
+        let mut cached_is_toggle = true;
+        let mut cached_required_vks = Vec::new();
 
         loop {
             std::thread::sleep(std::time::Duration::from_millis(15));
+            loop_counter = loop_counter.wrapping_add(1);
 
             let state = app.state::<PipelineState>();
-            let (hotkey_str, is_toggle) = {
+            // Refresh cached hotkey config every ~750ms (50 loops) to avoid locking settings mutex 66 times/sec
+            if loop_counter % 50 == 1 || cached_required_vks.is_empty() {
                 if let Ok(s) = state.settings.lock() {
-                    (s.hotkey.clone(), s.is_toggle_mode)
-                } else {
-                    continue;
+                    if s.hotkey != cached_hotkey_str || s.is_toggle_mode != cached_is_toggle {
+                        cached_hotkey_str = s.hotkey.clone();
+                        cached_is_toggle = s.is_toggle_mode;
+                        cached_required_vks = parse_hotkey_to_vks(&cached_hotkey_str);
+                    }
                 }
-            };
+            }
 
-            let required_vks = parse_hotkey_to_vks(&hotkey_str);
-            if required_vks.is_empty() {
+            if cached_required_vks.is_empty() {
                 continue;
             }
 
-            let is_combo_currently_down = required_vks.iter().all(|vk| is_vk_down(*vk));
+            let is_toggle = cached_is_toggle;
+            let is_combo_currently_down = cached_required_vks.iter().all(|vk| is_vk_down(*vk));
 
             if is_combo_currently_down && !was_combo_pressed {
                 was_combo_pressed = true;

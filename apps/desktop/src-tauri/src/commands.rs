@@ -81,13 +81,21 @@ pub fn get_groq_api_key_status() -> bool {
 }
 
 #[tauri::command]
-pub fn set_groq_api_key(api_key: String) -> Result<(), String> {
-    SecretStore::set_secret("groq_api_key", &api_key).map_err(|e| e.to_string())
+pub async fn set_groq_api_key(api_key: String) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        SecretStore::set_secret("groq_api_key", &api_key).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-pub fn delete_groq_api_key() -> Result<(), String> {
-    SecretStore::delete_secret("groq_api_key").map_err(|e| e.to_string())
+pub async fn delete_groq_api_key() -> Result<(), String> {
+    tokio::task::spawn_blocking(|| {
+        SecretStore::delete_secret("groq_api_key").map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -149,18 +157,18 @@ pub fn reprocess_history_item(
         .find(|r| r.id == id)
         .ok_or_else(|| "History record not found".to_string())?;
 
+    let (dictionary, snippets, current_lang) = {
+        let s = state.settings.lock().unwrap();
+        (s.dictionary.clone(), s.snippets.clone(), s.language.clone())
+    };
+
     let source_transcript = Transcript {
         text: record.raw_text.clone(),
-        language: "en".to_string(),
+        language: if current_lang == "auto" { "en".to_string() } else { current_lang },
         provider: record.provider_id.clone(),
         model: record.model_name.clone(),
         duration_ms: record.duration_ms,
         confidence: Some(0.95),
-    };
-
-    let (dictionary, snippets) = {
-        let s = state.settings.lock().unwrap();
-        (s.dictionary.clone(), s.snippets.clone())
     };
 
     let options = CleanupOptions {
@@ -267,4 +275,45 @@ pub fn get_autostart_status() -> bool {
 #[tauri::command]
 pub fn set_autostart_status(enable: bool) -> Result<(), String> {
     crate::set_autostart(enable)
+}
+
+#[tauri::command]
+pub async fn check_for_updates(
+    force: Option<bool>,
+) -> Result<crate::updater::UpdateInfo, String> {
+    crate::updater::check_github_update("zazanali/forge-wisper", force.unwrap_or(false)).await
+}
+
+#[tauri::command]
+pub async fn download_and_apply_update(
+    app: AppHandle,
+    download_url: String,
+    asset_name: Option<String>,
+) -> Result<String, String> {
+    let app_handle = app.clone();
+    let name = asset_name.unwrap_or_else(|| "ForgeWisper-Update.exe".to_string());
+
+    let path = crate::updater::download_update_installer(&download_url, &name, move |downloaded, total| {
+        let percentage = if total > 0 {
+            ((downloaded as f64 / total as f64) * 100.0).round() as u32
+        } else {
+            0
+        };
+        let _ = app_handle.emit(
+            "forge://update-download-progress",
+            serde_json::json!({
+                "downloaded_bytes": downloaded,
+                "total_bytes": total,
+                "percentage": percentage
+            }),
+        );
+    })
+    .await?;
+
+    Ok(path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub fn relaunch_and_install_update(installer_path: String) -> Result<(), String> {
+    crate::updater::launch_installer_and_exit(&installer_path)
 }

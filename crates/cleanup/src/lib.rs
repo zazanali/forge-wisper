@@ -159,10 +159,15 @@ impl RuleBasedCleaner {
         text = Self::expand_snippets(&text, &options.snippets);
 
         // 11. Language-specific cleanup: If dictating in English, strip any stray non-Latin script hallucinations
+        // only when Latin characters form the vast majority of the text, protecting legitimate non-Latin dictations.
         if transcript.language == "en" {
-            let re_arabic_script = Regex::new(r"[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]+").unwrap();
-            text = re_arabic_script.replace_all(&text, "").to_string();
-            text = RE_MULTI_SPACE.replace_all(&text, " ").to_string();
+            let latin_count = text.chars().filter(|c| c.is_alphabetic() && c.is_ascii()).count();
+            let arabic_count = text.chars().filter(|c| ('\u{0600}'..='\u{06FF}').contains(c) || ('\u{0750}'..='\u{077F}').contains(c) || ('\u{FB50}'..='\u{FDFF}').contains(c) || ('\u{FE70}'..='\u{FEFF}').contains(c)).count();
+            if latin_count > 0 && latin_count >= arabic_count {
+                let re_arabic_script = Regex::new(r"[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]+").unwrap();
+                text = re_arabic_script.replace_all(&text, "").to_string();
+                text = RE_MULTI_SPACE.replace_all(&text, " ").to_string();
+            }
         }
 
         let cleaned = text.trim().to_string();

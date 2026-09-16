@@ -362,7 +362,7 @@ export const DictionaryView: React.FC = () => {
                 type="button"
                 onClick={addDictionaryWord}
                 disabled={!newSpoken.trim() || !newPreferred.trim()}
-                className="px-4 py-2 btn-primary text-[13px] font-medium disabled:opacity-40 flex items-center gap-1.5 justify-center shrink-0 cursor-pointer"
+                className="px-4 py-2 btn-primary text-[13px] font-medium disabled:opacity-40 flex items-center gap-1.5 justify-center shrink-0 cursor-pointer w-full sm:w-auto"
               >
                 <Plus className="w-4 h-4" /> Add Word
               </button>

@@ -9,3 +9,5 @@ license.workspace = true
 keyring = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+lazy_static = { workspace = true }
+directories = { workspace = true }

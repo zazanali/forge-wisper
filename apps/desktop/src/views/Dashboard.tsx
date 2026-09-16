@@ -20,11 +20,12 @@ import {
   MoreVertical,
   ChevronDown,
   Trash2,
+  Search,
 } from "lucide-react";
 import { formatKeyForDisplay } from "./SettingsView";
 
 interface DashboardProps {
-  onNavigate: (tab: "dashboard" | "history" | "models" | "dictionary" | "settings") => void;
+  onNavigate: (view: any) => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
@@ -36,13 +37,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [dictationCopied, setDictationCopied] = useState(false);
 
   const [allHistoryRecords, setAllHistoryRecords] = useState<HistoryRecord[]>([]);
-  const [timeframe, setTimeframe] = useState<"Today" | "Week" | "All">("Today");
+  const [timeframe, setTimeframe] = useState<"Today" | "Week" | "All">(() => {
+    const saved = localStorage.getItem("forge_kpi_timeframe");
+    if (saved === "Today" || saved === "Week" || saved === "All") return saved;
+    return "Today";
+  });
   const [showTimeframeDropdown, setShowTimeframeDropdown] = useState(false);
   const [showFormatDropdown, setShowFormatDropdown] = useState(false);
   const [showMicDropdown, setShowMicDropdown] = useState(false);
   const [showModeDropdown, setShowModeDropdown] = useState(false);
-  const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
   const [showTopLanguageDropdown, setShowTopLanguageDropdown] = useState(false);
+  const [topLanguageSearch, setTopLanguageSearch] = useState("");
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
   // Audio level and live timer
@@ -54,7 +59,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const timeframeDropdownRef = useRef<HTMLDivElement>(null);
   const micDropdownRef = useRef<HTMLDivElement>(null);
   const modeDropdownRef = useRef<HTMLDivElement>(null);
-  const languageDropdownRef = useRef<HTMLDivElement>(null);
   const topLanguageDropdownRef = useRef<HTMLDivElement>(null);
 
   // Metrics
@@ -67,6 +71,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   useEffect(() => {
     loadData();
+    loadAudioDevices();
+
     const unlisten = api.onStateChange(({ state }) => {
       setProcState(state);
       if (state === "Success" || state === "Idle" || state === "Error") {
@@ -94,9 +100,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       }
       if (modeDropdownRef.current && !modeDropdownRef.current.contains(e.target as Node)) {
         setShowModeDropdown(false);
-      }
-      if (languageDropdownRef.current && !languageDropdownRef.current.contains(e.target as Node)) {
-        setShowLanguageDropdown(false);
       }
       if (topLanguageDropdownRef.current && !topLanguageDropdownRef.current.contains(e.target as Node)) {
         setShowTopLanguageDropdown(false);
@@ -136,18 +139,32 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       return true;
     });
 
-    const totalDuration = filtered.reduce((acc, r) => acc + (r.duration_ms || 0), 0);
     const totalWords = filtered.reduce((acc, r) => {
       const words = (r.final_text || "").trim().split(/\s+/).filter(Boolean).length;
       return acc + words;
     }, 0);
 
-    const totalAudioMinutes = totalDuration / 1000 / 60;
-    const rawWpm = totalAudioMinutes > 0 ? Math.round(totalWords / totalAudioMinutes) : (totalWords > 0 ? 148 : 0);
-    const effectiveWpm = rawWpm > 0 && rawWpm < 300 ? rawWpm : (totalWords > 0 ? 148 : 0);
+    const totalDurationMs = filtered.reduce((acc, r) => {
+      const words = (r.final_text || "").trim().split(/\s+/).filter(Boolean).length;
+      // If legacy record had ~200ms duration for many words, approximate realistic audio duration
+      const dur = r.duration_ms && r.duration_ms > 400 ? r.duration_ms : words * 400;
+      return acc + dur;
+    }, 0);
 
-    const savedMinutes = Math.round(totalWords * 0.0183);
-    const savedStr = savedMinutes >= 60
+    const totalAudioMinutes = totalDurationMs / 1000 / 60;
+    let effectiveWpm = 0;
+    if (totalAudioMinutes > 0.02 && totalWords > 0) {
+      const calculated = Math.round(totalWords / totalAudioMinutes);
+      effectiveWpm = Math.min(260, Math.max(70, calculated));
+    } else if (totalWords > 0) {
+      effectiveWpm = 145;
+    }
+
+    // Realistic time saved: typing (40 WPM) vs speaking (~140 WPM) = ~0.02 min per word
+    const savedMinutes = Math.max(totalWords > 0 ? 1 : 0, Math.round(totalWords * 0.02));
+    const savedStr = totalWords === 0
+      ? "0m"
+      : savedMinutes >= 60
       ? `${(savedMinutes / 60).toFixed(1)}h`
       : `${savedMinutes}m`;
 
@@ -159,20 +176,39 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     });
   }, [allHistoryRecords, timeframe]);
 
+  const loadAudioDevices = async () => {
+    try {
+      const devices = await api.getAudioDevices();
+      setAudioDevices(devices || []);
+    } catch (e) {
+      console.error("Audio devices fetch warning:", e);
+    }
+  };
+
   const loadData = async () => {
     try {
-      const [s, allHistory, st, devices] = await Promise.all([
+      // Fetch settings, up to 500 historical records from SQLite database, and pipeline status
+      const [s, allHistory, st] = await Promise.all([
         api.getSettings(),
-        api.listHistory(100),
+        api.listHistory(500),
         api.getProcessingState(),
-        api.getAudioDevices().catch(() => [] as AudioDeviceInfo[]),
       ]);
 
       setSettings(s);
-      setAllHistoryRecords(allHistory);
-      setHistory(allHistory.slice(0, 5));
+      setAllHistoryRecords(allHistory || []);
+      setHistory((allHistory || []).slice(0, 5));
       setProcState(st);
-      setAudioDevices(devices);
+
+      // Smart default: If user hasn't chosen a preference, and today has 0 sessions but DB has records, display "All"
+      const savedTf = localStorage.getItem("forge_kpi_timeframe");
+      if (!savedTf && allHistory && allHistory.length > 0) {
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const hasTodayRecords = allHistory.some((r) => new Date(r.created_at).getTime() >= startOfToday);
+        if (!hasTodayRecords) {
+          setTimeframe("All");
+        }
+      }
     } catch (e) {
       console.error("Error loading dashboard data:", e);
     }
@@ -310,7 +346,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     try {
       await api.updateSettings(updated);
       setSettings(updated);
-      setShowLanguageDropdown(false);
+      setShowTopLanguageDropdown(false);
+      setTopLanguageSearch("");
     } catch (err) {
       console.error("Failed to update language:", err);
     }
@@ -318,9 +355,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   const getSelectedLanguageDisplay = () => {
     const code = settings?.language || "auto";
-    const found = SUPPORTED_LANGUAGES.find((l) => l.code === code);
-    if (!found || code === "auto") {
+    if (code === "auto") {
       return { flag: "🌐", name: "Auto-Detect", code: "auto" };
+    }
+    const found = SUPPORTED_LANGUAGES.find((l) => l.code === code);
+    if (!found) {
+      return { flag: "🌐", name: code.toUpperCase(), code };
     }
     return found;
   };
@@ -410,8 +450,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               onClick={(e) => {
                 e.stopPropagation();
                 setShowTopLanguageDropdown(!showTopLanguageDropdown);
+                setTopLanguageSearch("");
               }}
-              title="Active Speech Recognition Language (Click to quickly change language)"
+              title="Active Speech Recognition Language (Click to change language)"
               className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-[6px] border text-[13px] cursor-pointer transition-all ${
                 showTopLanguageDropdown
                   ? "bg-[var(--surface-elevated)] border-[var(--accent)] ring-1 ring-[var(--accent)]"
@@ -422,100 +463,124 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               <span className="font-medium text-[var(--text-primary)]">
                 {getSelectedLanguageDisplay().name}
               </span>
-              {(!settings?.language || settings.language === "en") ? (
-                <span className="px-1.5 py-0.2 rounded-[4px] bg-[var(--accent-subtle)] text-[11px] font-mono text-[var(--accent)] border border-[var(--accent-border)] font-semibold">
-                  EN (Locked)
-                </span>
-              ) : settings?.language !== "auto" ? (
-                <span className="px-1.5 py-0.2 rounded-[4px] bg-[var(--accent-subtle)] text-[11px] font-mono text-[var(--accent)] border border-[var(--accent-border)] font-semibold uppercase">
-                  {settings.language}
-                </span>
-              ) : (
+              {(!settings?.language || settings.language === "auto") ? (
                 <span className="px-1.5 py-0.2 rounded-[4px] bg-[var(--surface-elevated)] text-[11px] font-mono text-[var(--text-muted)] border border-[var(--border)]">
                   Auto
+                </span>
+              ) : (
+                <span className="px-1.5 py-0.2 rounded-[4px] bg-[var(--accent-subtle)] text-[11px] font-mono text-[var(--accent)] border border-[var(--accent-border)] font-semibold uppercase">
+                  {settings.language}
                 </span>
               )}
               <ChevronDown className={`w-3 h-3 text-[var(--text-muted)] shrink-0 transition-transform ${showTopLanguageDropdown ? "rotate-180" : ""}`} />
             </button>
 
             {showTopLanguageDropdown && (
-              <div className="absolute left-0 mt-1.5 w-64 max-h-72 overflow-y-auto py-1.5 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-[8px] shadow-xl z-40 font-sans text-[12px] animate-fadeIn">
-                <div className="px-3 py-1 text-[11px] font-mono text-[var(--text-muted)] uppercase tracking-wider">
-                  Speech Language
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="absolute left-0 mt-1.5 w-72 max-w-[calc(100vw-2.5rem)] py-2 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-[8px] shadow-2xl z-40 font-sans text-[12px] animate-fadeIn"
+              >
+                {/* Search Bar */}
+                <div className="px-2.5 pb-2 border-b border-[var(--border-subtle)]">
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                    <input
+                      type="text"
+                      value={topLanguageSearch}
+                      onChange={(e) => setTopLanguageSearch(e.target.value)}
+                      placeholder="Search language or country..."
+                      className="w-full pl-8 pr-2.5 py-1.5 bg-[var(--surface-primary)] border border-[var(--border)] rounded-[5px] text-[12px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)]"
+                      autoFocus
+                    />
+                  </div>
                 </div>
 
-                {/* English First / Primary Option */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleSelectLanguage("en");
-                    setShowTopLanguageDropdown(false);
-                  }}
-                  className={`w-full text-left px-3 py-2 hover:bg-[var(--surface-hover)] transition-colors flex items-center justify-between ${
-                    (!settings?.language || settings.language === "en") ? "bg-[var(--accent-subtle)] text-[var(--accent)] font-semibold" : "text-[var(--text-primary)]"
-                  }`}
-                >
-                  <span className="flex items-center gap-2">
-                    <span className="text-[14px]">🇺🇸</span>
-                    <span>English (Recommended)</span>
-                  </span>
-                  {(!settings?.language || settings.language === "en") && <Check className="w-3.5 h-3.5 text-[var(--accent)]" />}
-                </button>
+                <div className="max-h-64 overflow-y-auto custom-scrollbar py-1">
+                  {!topLanguageSearch.trim() && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectLanguage("auto")}
+                        className={`w-full text-left px-3 py-1.5 hover:bg-[var(--surface-hover)] transition-colors flex items-center justify-between cursor-pointer ${
+                          (!settings?.language || settings.language === "auto")
+                            ? "bg-[var(--accent-subtle)] text-[var(--accent)] font-semibold"
+                            : "text-[var(--text-primary)]"
+                        }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <span className="text-[14px]">🌐</span>
+                          <span>Auto-Detect Language</span>
+                        </span>
+                        {(!settings?.language || settings.language === "auto") && (
+                          <Check className="w-3.5 h-3.5 text-[var(--accent)]" />
+                        )}
+                      </button>
 
-                <div className="border-t border-[var(--border-subtle)] my-1" />
+                      <div className="border-t border-[var(--border-subtle)] my-1" />
 
-                {[
-                  { code: "auto", name: "Auto-Detect All", flag: "🌐" },
-                  { code: "ur", name: "Urdu (اردو)", flag: "🇵🇰" },
-                  { code: "hi", name: "Hindi (हिन्दी)", flag: "🇮🇳" },
-                  { code: "ar", name: "Arabic (العربية)", flag: "🇸🇦" },
-                  { code: "es", name: "Spanish", flag: "🇪🇸" },
-                  { code: "fr", name: "French", flag: "🇫🇷" },
-                  { code: "de", name: "German", flag: "🇩🇪" },
-                  { code: "zh", name: "Chinese (中文)", flag: "🇨🇳" },
-                  { code: "ja", name: "Japanese (日本語)", flag: "🇯🇵" },
-                ].map((lang) => {
-                  const isSelected = settings?.language === lang.code;
-                  return (
-                    <button
-                      key={lang.code}
-                      type="button"
-                      onClick={() => {
-                        handleSelectLanguage(lang.code);
-                        setShowTopLanguageDropdown(false);
-                      }}
-                      className={`w-full text-left px-3 py-1.5 hover:bg-[var(--surface-hover)] transition-colors flex items-center justify-between ${
-                        isSelected ? "text-[var(--accent)] font-semibold" : "text-[var(--text-primary)]"
-                      }`}
-                    >
-                      <span className="flex items-center gap-2">
-                        <span className="text-[13px]">{lang.flag}</span>
-                        <span className="truncate">{lang.name}</span>
-                      </span>
-                      {isSelected && <Check className="w-3.5 h-3.5 text-[var(--accent)]" />}
-                    </button>
-                  );
-                })}
+                      <div className="px-3 py-1 text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider">
+                        Recommended & Popular
+                      </div>
+                    </>
+                  )}
 
-                <div className="border-t border-[var(--border-subtle)] my-1" />
+                  {SUPPORTED_LANGUAGES.filter((lang) => {
+                    if (lang.code === "auto" && !topLanguageSearch.trim()) return false;
+                    const q = topLanguageSearch.toLowerCase().trim();
+                    if (!q) {
+                      return ["en", "es", "ur", "hi", "ar", "fr", "de", "zh", "ja", "pt", "ru", "it"].includes(lang.code);
+                    }
+                    return (
+                      lang.name.toLowerCase().includes(q) ||
+                      (lang.nativeName && lang.nativeName.toLowerCase().includes(q)) ||
+                      lang.code.toLowerCase().includes(q)
+                    );
+                  }).map((lang) => {
+                    const isSelected = settings?.language === lang.code;
+                    return (
+                      <button
+                        key={lang.code}
+                        type="button"
+                        onClick={() => handleSelectLanguage(lang.code)}
+                        className={`w-full text-left px-3 py-1.5 hover:bg-[var(--surface-hover)] transition-colors flex items-center justify-between cursor-pointer ${
+                          isSelected ? "bg-[var(--accent-subtle)] text-[var(--accent)] font-semibold" : "text-[var(--text-primary)]"
+                        }`}
+                      >
+                        <span className="flex items-center gap-2 truncate">
+                          <span className="text-[13px]">{lang.flag}</span>
+                          <span className="truncate">{lang.name}</span>
+                          {lang.nativeName && lang.nativeName !== lang.name && (
+                            <span className="text-[11px] text-[var(--text-muted)] font-normal truncate">
+                              ({lang.nativeName})
+                            </span>
+                          )}
+                        </span>
+                        {isSelected && <Check className="w-3.5 h-3.5 text-[var(--accent)] shrink-0 ml-1" />}
+                      </button>
+                    );
+                  })}
+                </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowTopLanguageDropdown(false);
-                    onNavigate("settings");
-                  }}
-                  className="w-full text-left px-3 py-1.5 hover:bg-[var(--surface-hover)] text-[var(--accent)] font-medium transition-colors flex items-center justify-between"
-                >
-                  <span>More Languages & Settings &rarr;</span>
-                </button>
+                <div className="border-t border-[var(--border-subtle)] pt-1 px-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowTopLanguageDropdown(false);
+                      onNavigate("settings");
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 rounded-[4px] hover:bg-[var(--surface-hover)] text-[var(--accent)] font-medium transition-colors flex items-center justify-between text-[11px] cursor-pointer"
+                  >
+                    <span>All 99+ Languages in Settings</span>
+                    <span>&rarr;</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>
         </div>
 
         {/* Right Side: Keycaps, Dictate Button & Settings */}
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-2.5 w-full sm:w-auto justify-end shrink-0">
           {/* Shortcut Keycaps */}
           <div
             onClick={() => onNavigate("settings")}
@@ -539,7 +604,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             type="button"
             onClick={toggleRecording}
             disabled={isProcessing}
-            className={`inline-flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-[6px] font-medium text-[13px] transition-all duration-150 select-none cursor-pointer shadow-xs ${
+            className={`inline-flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-[6px] font-medium text-[13px] transition-all duration-150 select-none cursor-pointer shadow-xs flex-1 sm:flex-initial ${
               isProcessing
                 ? "bg-[var(--surface-elevated)] text-[var(--text-disabled)] cursor-not-allowed border border-[var(--border)]"
                 : isRecording
@@ -598,7 +663,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                   {isRecording
                     ? `${durationSecs.toFixed(1)}s duration`
                     : history[0]
-                    ? `${((history[0].duration_ms || 0) / 1000).toFixed(1)}s duration`
+                    ? `${((history[0].duration_ms && history[0].duration_ms > 400 ? history[0].duration_ms : Math.max(1200, (history[0].final_text || "").split(/\s+/).filter(Boolean).length * 400)) / 1000).toFixed(1)}s duration`
                     : "0.0s duration"}
                 </span>
                 <span className="text-[var(--text-muted)]">·</span>
@@ -696,9 +761,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         <div className="forge-card p-4 sm:p-5 rounded-[8px] bg-[var(--surface-primary)] border border-[var(--border)] flex flex-col justify-between space-y-3 min-h-[160px]">
           {/* Header with Title and Today Dropdown */}
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-mono text-[var(--accent)] font-semibold uppercase tracking-widest">
-              FORGE WORDS
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-mono text-[var(--accent)] font-semibold uppercase tracking-widest">
+                FORGE WORDS
+              </span>
+              {timeframe === "Today" && allHistoryRecords.length > 0 && metrics.sessionsCount === 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTimeframe("All");
+                    localStorage.setItem("forge_kpi_timeframe", "All");
+                  }}
+                  className="text-[11px] text-[var(--text-muted)] hover:text-[var(--accent)] cursor-pointer transition-colors"
+                  title="Click to view all-time database metrics"
+                >
+                  · <span className="underline">{allHistoryRecords.length} in history</span>
+                </button>
+              )}
+            </div>
 
             <div className="relative" ref={timeframeDropdownRef}>
               <button
@@ -720,9 +800,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                       key={tf}
                       onClick={() => {
                         setTimeframe(tf);
+                        localStorage.setItem("forge_kpi_timeframe", tf);
                         setShowTimeframeDropdown(false);
                       }}
-                      className={`w-full text-left px-3 py-1.5 hover:bg-[var(--surface-hover)] transition-colors ${
+                      className={`w-full text-left px-3 py-1.5 hover:bg-[var(--surface-hover)] transition-colors cursor-pointer ${
                         timeframe === tf ? "text-[var(--accent)] font-medium" : "text-[var(--text-primary)]"
                       }`}
                     >
@@ -735,36 +816,36 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           </div>
 
           {/* 3 Metric Columns with Balanced Proportions */}
-          <div className="grid grid-cols-3 gap-2 sm:gap-4 my-auto py-2 text-center items-center">
+          <div className="grid grid-cols-3 gap-1.5 sm:gap-4 my-auto py-2 text-center items-center">
             {/* Col 1: Words transcribed */}
             <div className="flex flex-col items-center space-y-1">
-              <div className="text-[32px] sm:text-[36px] font-bold font-sans text-[var(--text-primary)] tracking-tight leading-none tabular-nums">
+              <div className="text-[22px] xs:text-[28px] sm:text-[32px] md:text-[36px] font-bold font-sans text-[var(--text-primary)] tracking-tight leading-none tabular-nums">
                 {metrics.wordsTranscribed}
               </div>
-              <div className="text-[12px] font-medium text-[var(--text-secondary)] font-sans leading-tight">
+              <div className="text-[11px] sm:text-[12px] font-medium text-[var(--text-secondary)] font-sans leading-tight">
                 Words<br />transcribed
               </div>
             </div>
 
             {/* Col 2: Time saved */}
             <div className="flex flex-col items-center space-y-1">
-              <div className="flex items-baseline justify-center text-[32px] sm:text-[36px] font-bold font-sans text-[var(--text-primary)] tracking-tight leading-none tabular-nums">
+              <div className="flex items-baseline justify-center text-[22px] xs:text-[28px] sm:text-[32px] md:text-[36px] font-bold font-sans text-[var(--text-primary)] tracking-tight leading-none tabular-nums">
                 <span>{savedTime.value}</span>
-                <span className="text-[18px] sm:text-[20px] font-semibold text-[var(--text-muted)] ml-0.5">
+                <span className="text-[13px] xs:text-[16px] sm:text-[20px] font-semibold text-[var(--text-muted)] ml-0.5">
                   {savedTime.unit}
                 </span>
               </div>
-              <div className="text-[12px] font-medium text-[var(--text-secondary)] font-sans leading-tight">
+              <div className="text-[11px] sm:text-[12px] font-medium text-[var(--text-secondary)] font-sans leading-tight">
                 Time<br />saved
               </div>
             </div>
 
             {/* Col 3: Sessions */}
             <div className="flex flex-col items-center space-y-1">
-              <div className="text-[32px] sm:text-[36px] font-bold font-sans text-[var(--text-primary)] tracking-tight leading-none tabular-nums">
+              <div className="text-[22px] xs:text-[28px] sm:text-[32px] md:text-[36px] font-bold font-sans text-[var(--text-primary)] tracking-tight leading-none tabular-nums">
                 {metrics.sessionsCount}
               </div>
-              <div className="text-[12px] font-medium text-[var(--text-secondary)] font-sans leading-tight">
+              <div className="text-[11px] sm:text-[12px] font-medium text-[var(--text-secondary)] font-sans leading-tight">
                 Sessions
               </div>
             </div>
@@ -890,86 +971,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               </div>
             </div>
 
-            {/* 4. Language Selector */}
-            <div className="flex items-center gap-2">
-              <span className="text-[var(--text-muted)] font-medium">Language</span>
-              <div className="relative" ref={languageDropdownRef}>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowLanguageDropdown(!showLanguageDropdown);
-                  }}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[5px] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] border border-[var(--border)] text-[12px] text-[var(--text-primary)] font-medium transition-colors cursor-pointer max-w-[200px]"
-                >
-                  <span className="text-[12px]">{getSelectedLanguageDisplay().flag}</span>
-                  <span className="truncate">
-                    {getSelectedLanguageDisplay().name}
-                  </span>
-                  <ChevronDown className="w-3 h-3 text-[var(--text-muted)] shrink-0" />
-                </button>
-
-                {showLanguageDropdown && (
-                  <div className="absolute left-0 mt-1 w-56 max-h-52 overflow-y-auto py-1 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-[6px] shadow-lg z-30 font-sans text-[12px]">
-                    <button
-                      onClick={() => handleSelectLanguage("auto")}
-                      className={`w-full text-left px-3 py-1.5 hover:bg-[var(--surface-hover)] transition-colors flex items-center justify-between ${
-                        (!settings?.language || settings.language === "auto") ? "text-[var(--accent)] font-medium" : "text-[var(--text-primary)]"
-                      }`}
-                    >
-                      <span className="flex items-center gap-2">
-                        <span>🌐</span>
-                        <span>Auto-Detect</span>
-                      </span>
-                      {(!settings?.language || settings.language === "auto") && <Check className="w-3 h-3 text-[var(--accent)]" />}
-                    </button>
-
-                    <div className="border-t border-[var(--border-subtle)] my-1" />
-
-                    {[
-                      { code: "en", name: "English", flag: "🇺🇸" },
-                      { code: "ur", name: "Urdu (اردو)", flag: "🇵🇰" },
-                      { code: "hi", name: "Hindi (हिन्दी)", flag: "🇮🇳" },
-                      { code: "es", name: "Spanish", flag: "🇪🇸" },
-                      { code: "fr", name: "French", flag: "🇫🇷" },
-                      { code: "de", name: "German", flag: "🇩🇪" },
-                      { code: "ar", name: "Arabic (العربية)", flag: "🇸🇦" },
-                      { code: "zh", name: "Chinese (中文)", flag: "🇨🇳" },
-                      { code: "ja", name: "Japanese (日本語)", flag: "🇯🇵" },
-                      { code: "pt", name: "Portuguese", flag: "🇧🇷" },
-                      { code: "ru", name: "Russian (Русский)", flag: "🇷🇺" },
-                    ].map((lang) => (
-                      <button
-                        key={lang.code}
-                        onClick={() => handleSelectLanguage(lang.code)}
-                        className={`w-full text-left px-3 py-1.5 hover:bg-[var(--surface-hover)] transition-colors flex items-center justify-between ${
-                          settings?.language === lang.code ? "text-[var(--accent)] font-medium" : "text-[var(--text-primary)]"
-                        }`}
-                      >
-                        <span className="flex items-center gap-2">
-                          <span>{lang.flag}</span>
-                          <span className="truncate">{lang.name}</span>
-                        </span>
-                        {settings?.language === lang.code && <Check className="w-3 h-3 text-[var(--accent)]" />}
-                      </button>
-                    ))}
-
-                    <div className="border-t border-[var(--border-subtle)] my-1" />
-
-                    <button
-                      onClick={() => {
-                        setShowLanguageDropdown(false);
-                        onNavigate("settings");
-                      }}
-                      className="w-full text-left px-3 py-1.5 hover:bg-[var(--surface-hover)] text-[var(--accent)] font-medium transition-colors text-[11px] flex items-center justify-between"
-                    >
-                      <span>More in Settings (99+)...</span>
-                      <span>→</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
 
           {/* Far Right: Segmented LED Audio VU Meter */}
@@ -1031,20 +1032,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               return (
                 <div
                   key={item.id}
-                  className="px-3 py-2.5 rounded-[6px] hover:bg-[var(--surface-elevated)] transition-colors flex flex-wrap items-center justify-between gap-3 group border border-transparent hover:border-[var(--border)]"
+                  className="px-3 py-2.5 rounded-[6px] hover:bg-[var(--surface-elevated)] transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 group border border-transparent hover:border-[var(--border)]"
                 >
                   {/* Left: Document Icon & Transcription Text */}
-                  <div className="flex items-center gap-3 flex-1 min-w-[260px]">
+                  <div className="flex items-center gap-3 w-full sm:w-auto flex-1 min-w-0">
                     <div className="w-6 h-6 rounded-[4px] bg-[var(--surface-elevated)] border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] shrink-0">
                       <FileText className="w-3.5 h-3.5" />
                     </div>
-                    <p className="text-[13px] sm:text-[14px] font-normal text-[var(--text-primary)] font-sans line-clamp-1 leading-normal">
+                    <p className="text-[13px] sm:text-[14px] font-normal text-[var(--text-primary)] font-sans truncate leading-normal">
                       "{item.final_text}"
                     </p>
                   </div>
 
                   {/* Middle & Right: Metadata & Actions */}
-                  <div className="flex items-center gap-3 sm:gap-4 shrink-0 flex-wrap justify-end">
+                  <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 shrink-0 w-full sm:w-auto flex-wrap">
                     {/* Timestamp & Provider Metadata */}
                     <div className="flex items-center gap-2 text-[12px] font-sans text-[var(--text-muted)]">
                       <span>

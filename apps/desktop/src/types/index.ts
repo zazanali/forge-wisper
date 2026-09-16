@@ -28,8 +28,27 @@ export interface AppSettings {
   snippets: Record<string, string>;
   theme: "dark" | "light" | "system";
   launch_at_startup?: boolean;
+  auto_check_updates?: boolean;
   output_mode?: "realtime_stream" | "progressive" | "instant_paste";
   typing_delay_ms?: number;
+}
+
+export interface UpdateInfo {
+  current_version: string;
+  latest_version: string;
+  has_update: boolean;
+  release_title: string;
+  release_notes: string;
+  published_at: string;
+  download_url: string;
+  asset_name: string;
+  asset_size_bytes: number;
+}
+
+export interface UpdateDownloadProgress {
+  percentage: number;
+  downloaded_bytes: number;
+  total_bytes: number;
 }
 
 export interface LiveTranscriptPayload {

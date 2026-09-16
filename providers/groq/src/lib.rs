@@ -133,7 +133,7 @@ impl TranscriptionProvider for GroqTranscriptionProvider {
             .text("model", model.clone())
             .text("response_format", "json");
 
-        if let Some(lang) = options.language {
+        if let Some(ref lang) = options.language {
             let lang_clean = lang.trim();
             if lang_clean != "auto" && !lang_clean.is_empty() {
                 form = form.text("language", lang_clean.to_string());
@@ -180,9 +180,14 @@ impl TranscriptionProvider for GroqTranscriptionProvider {
 
         println!("[Forge Groq] Received transcription from Groq: {:?}", groq_res.text);
 
+        let effective_lang = groq_res
+            .language
+            .or(options.language)
+            .unwrap_or_else(|| "en".to_string());
+
         Ok(Transcript {
             text: groq_res.text,
-            language: groq_res.language.unwrap_or_else(|| "en".to_string()),
+            language: effective_lang,
             provider: "groq".to_string(),
             model,
             duration_ms: audio.duration_ms,

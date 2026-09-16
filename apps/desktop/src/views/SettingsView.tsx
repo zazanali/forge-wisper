@@ -6,8 +6,10 @@ import {
   type AudioDeviceInfo,
   type FormattingMode,
   type RetentionPolicy,
+  type UpdateInfo,
 } from "../types";
 import { ForgeLogo } from "../components/ForgeLogo";
+import { UpdateModal } from "../components/UpdateModal";
 import {
   Zap,
   Cpu,
@@ -36,6 +38,8 @@ import {
   Globe,
   Languages,
   Search,
+  Users,
+  Download,
 } from "lucide-react";
 
 interface SettingsViewProps {
@@ -69,6 +73,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isKeySaved, setIsKeySaved] = useState(false);
   const [languageSearch, setLanguageSearch] = useState("");
+
+  // Online Update State
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [updateCheckResult, setUpdateCheckResult] = useState<UpdateInfo | null>(null);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+
+  const handleCheckForUpdates = async () => {
+    setCheckingUpdate(true);
+    try {
+      const info = await api.checkForUpdates(true);
+      setUpdateCheckResult(info);
+      if (info.has_update) {
+        setIsUpdateModalOpen(true);
+      }
+    } catch (err) {
+      console.error("Update check failed:", err);
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
 
   // Hotkey Recorder State
   const [isRecordingHotkey, setIsRecordingHotkey] = useState(false);
@@ -207,14 +231,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
 
   const loadSettings = async () => {
     try {
-      const s = await api.getSettings();
+      // Fetch settings and key status in parallel for instant render
+      const [s, keyStatus] = await Promise.all([
+        api.getSettings(),
+        api.getGroqKeyStatus().catch(() => false),
+      ]);
       setSettings(s);
-      const devices = await api.getAudioDevices();
-      setAudioDevices(devices);
-      const keyStatus = await api.getGroqKeyStatus();
       setHasStoredKey(keyStatus);
+
+      // Load audio devices in the background without blocking the settings view
+      api.getAudioDevices()
+        .then((devices) => setAudioDevices(devices || []))
+        .catch((e) => console.error("Audio devices load warning:", e));
     } catch (e) {
-      console.error(e);
+      console.error("Settings load error:", e);
     }
   };
 
@@ -245,15 +275,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
   };
 
   const saveGroqKey = async () => {
-    if (!apiKeyInput.trim()) return;
+    const keyToSave = apiKeyInput.trim();
+    if (!keyToSave) return;
     try {
-      await api.setGroqKey(apiKeyInput.trim());
+      // Optimistically update UI immediately (< 1ms)
       setApiKeyInput("");
       setHasStoredKey(true);
       setIsKeySaved(true);
-      setTestResult({ success: true, msg: "API Key saved securely in OS Keyring" });
+      setTestResult({ success: true, msg: "API Key saved securely in OS Keyring & local vault" });
       setTimeout(() => setIsKeySaved(false), 3000);
+
+      await api.setGroqKey(keyToSave);
     } catch (e) {
+      setHasStoredKey(false);
       setTestResult({ success: false, msg: `Failed to save key: ${e}` });
     }
   };
@@ -335,7 +369,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
               key={cat.id}
               type="button"
               onClick={() => setActiveCategory(cat.id)}
-              className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 px-3 py-1.5 rounded-[6px] text-[13px] font-medium transition-all cursor-pointer select-none ${
+              className={`flex-1 min-w-[120px] shrink-0 whitespace-nowrap flex items-center justify-center gap-2 px-3 py-1.5 rounded-[6px] text-[13px] font-medium transition-all cursor-pointer select-none ${
                 isActive
                   ? "bg-[var(--accent-subtle)] text-[var(--accent)] border border-[var(--accent-border)] font-medium"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-transparent"
@@ -1305,7 +1339,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                   <div className="text-[16px] font-semibold text-[var(--text-primary)] flex items-center gap-2">
                     Forge Wisper
                     <span className="text-[10px] font-mono text-[var(--accent)] px-2 py-0.5 rounded-[4px] bg-[var(--accent-subtle)] border border-[var(--accent-border)]">
-                      v0.1.2
+                      v0.1.3
                     </span>
                   </div>
                   <p className="text-[13px] text-[var(--text-secondary)] mt-0.5">
@@ -1334,20 +1368,135 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
               </div>
             </div>
 
-            <div className="pt-1 flex flex-col sm:flex-row items-center justify-between text-[12px] text-[var(--text-muted)] gap-2">
-              <span>Crafted for high-speed voice workflows & clean code dictation.</span>
+            {/* Online Version & Update Management */}
+            <div className="p-4 rounded-[8px] bg-[var(--surface-elevated)] border border-[var(--border)] space-y-3">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-[6px] bg-[var(--accent-subtle)] text-[var(--accent)] shrink-0">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="font-medium text-[14px] text-[var(--text-primary)] flex items-center gap-2 flex-wrap">
+                      <span>Online Updates &amp; Version Status</span>
+                      {updateCheckResult?.has_update ? (
+                        <span className="text-[10px] font-mono text-[var(--accent)] px-2 py-0.5 rounded-[4px] bg-[var(--accent-subtle)] border border-[var(--accent-border)] font-semibold">
+                          {updateCheckResult.latest_version} Available
+                        </span>
+                      ) : updateCheckResult ? (
+                        <span className="text-[10px] font-mono text-[var(--success)] px-2 py-0.5 rounded-[4px] bg-[var(--success-bg)] border border-[var(--success-border)] font-semibold">
+                          Up to Date
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="text-[12px] text-[var(--text-secondary)] mt-0.5">
+                      {updateCheckResult?.has_update
+                        ? `A new version (${updateCheckResult.latest_version}) is ready with new features and optimizations.`
+                        : updateCheckResult
+                        ? `You are on the latest version of Forge Wisper (v${updateCheckResult.current_version}).`
+                        : `Current version: v0.1.3. Automatic update checks run smoothly in the background.`}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-end">
+                  {updateCheckResult?.has_update ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsUpdateModalOpen(true)}
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-[6px] bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-contrast)] text-[12px] font-semibold transition-all shadow-xs cursor-pointer w-full sm:w-auto"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Update to {updateCheckResult.latest_version}</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={checkingUpdate}
+                      onClick={handleCheckForUpdates}
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-[6px] bg-[var(--surface-primary)] hover:bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-primary)] text-[12px] font-medium transition-all shadow-xs cursor-pointer disabled:opacity-50 w-full sm:w-auto"
+                    >
+                      {checkingUpdate ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-[var(--accent)]" />
+                          <span>Checking...</span>
+                        </>
+                      ) : (
+                        <>
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>Check for Updates</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Community & Discussion Hub */}
+            <div className="p-4 rounded-[8px] bg-[var(--surface-elevated)] border border-[var(--border)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-[6px] bg-[var(--accent-subtle)] text-[var(--accent)] shrink-0">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="font-medium text-[14px] text-[var(--text-primary)] flex items-center gap-2">
+                    AI NetworkX Community
+                    <span className="text-[10px] font-mono text-[var(--accent)] px-2 py-0.5 rounded-[4px] bg-[var(--accent-subtle)] border border-[var(--accent-border)] font-semibold">
+                      Official
+                    </span>
+                  </div>
+                  <p className="text-[12px] text-[var(--text-secondary)] mt-0.5">
+                    Connect with creators, share voice workflows, request features, and get support.
+                  </p>
+                </div>
+              </div>
+
               <button
                 type="button"
-                onClick={() => api.openUrl("https://github.com/zazanali/forge-wisper")}
-                className="font-mono text-[var(--accent)] hover:underline hover:text-[var(--accent-hover)] transition-colors inline-flex items-center gap-1.5 cursor-pointer bg-transparent border-0 p-0"
-                title="Open GitHub repository in browser"
+                onClick={() => api.openUrl("https://community.ainetworkx.com")}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-[6px] bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-[12px] font-medium transition-all shadow-xs cursor-pointer shrink-0 w-full sm:w-auto"
+                title="Visit AI NetworkX Community"
               >
-                <span>github.com/zazanali/forge-wisper</span>
-                <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                <span>community.ainetworkx.com</span>
+                <ExternalLink className="w-3.5 h-3.5" />
               </button>
+            </div>
+
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-between text-[12px] text-[var(--text-muted)] gap-2 border-t border-[var(--border-subtle)]">
+              <span>Crafted for high-speed voice workflows & clean code dictation.</span>
+              <div className="flex items-center gap-3 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => api.openUrl("https://community.ainetworkx.com")}
+                  className="font-mono text-[var(--accent)] hover:underline hover:text-[var(--accent-hover)] transition-colors inline-flex items-center gap-1 cursor-pointer bg-transparent border-0 p-0"
+                  title="Open Community Forum"
+                >
+                  <span>community.ainetworkx.com</span>
+                  <ExternalLink className="w-3 h-3 shrink-0" />
+                </button>
+                <span className="text-[var(--border)]">·</span>
+                <button
+                  type="button"
+                  onClick={() => api.openUrl("https://github.com/zazanali/forge-wisper")}
+                  className="font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors inline-flex items-center gap-1 cursor-pointer bg-transparent border-0 p-0"
+                  title="Open GitHub repository in browser"
+                >
+                  <span>github.com/zazanali/forge-wisper</span>
+                  <ExternalLink className="w-3 h-3 shrink-0" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Update Modal when triggered from Settings */}
+      {updateCheckResult && (
+        <UpdateModal
+          updateInfo={updateCheckResult}
+          isOpen={isUpdateModalOpen}
+          onClose={() => setIsUpdateModalOpen(false)}
+        />
       )}
     </div>
   );

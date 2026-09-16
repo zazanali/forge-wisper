@@ -110,8 +110,8 @@ impl AppSettings {
                             settings.provider = "groq".to_string();
                             settings.model = "whisper-large-v3-turbo".to_string();
                         }
-                        // Default to English ("en") if unset or set to "auto" to prevent accidental Urdu/Hindi misclassification
-                        if settings.language.trim().is_empty() || settings.language == "auto" {
+                        // Default to English ("en") only if language is completely unset
+                        if settings.language.trim().is_empty() {
                             settings.language = "en".to_string();
                         }
                         return settings;
@@ -214,22 +214,27 @@ impl PipelineState {
                     let _ = recorder_win.show();
                 }
                 ProcessingState::Success | ProcessingState::Error | ProcessingState::Cancelled => {
-                    // Stay visible briefly then hide only if not recording anew
+                    // Stay visible briefly then hide only if not recording anew and reset state to Idle
                     let app_clone = app.clone();
                     tauri::async_runtime::spawn(async move {
                         tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
                         let st = app_clone.state::<PipelineState>();
-                        let current = *st.current_state.lock().unwrap();
+                        let mut current = st.current_state.lock().unwrap();
                         if matches!(
-                            current,
+                            *current,
                             ProcessingState::Success
                                 | ProcessingState::Error
                                 | ProcessingState::Cancelled
-                                | ProcessingState::Idle
                         ) {
+                            *current = ProcessingState::Idle;
+                            drop(current);
                             if let Some(w) = app_clone.get_webview_window("recorder") {
                                 let _ = w.hide();
                             }
+                            let _ = app_clone.emit("forge://state-changed", serde_json::json!({
+                                "state": ProcessingState::Idle,
+                                "error": null
+                            }));
                         }
                     });
                 }
@@ -430,7 +435,8 @@ impl PipelineState {
 
         let start_time = Instant::now();
 
-        // 1. Encode complete audio
+        // 1. Encode complete audio and measure true speech duration
+        let buffer_dur_ms = rec.get_buffer_duration_ms();
         let wav_bytes = match rec.stop_and_encode_wav() {
             Ok(bytes) => bytes,
             Err(e) => {
@@ -438,6 +444,13 @@ impl PipelineState {
                 self.set_state(&app, ProcessingState::Error, Some(err.clone()));
                 return Err(err);
             }
+        };
+
+        // 16kHz 16-bit mono = 32,000 bytes/sec (32 bytes per ms), minus 44-byte WAV header
+        let speech_duration_ms = if buffer_dur_ms > 100 {
+            buffer_dur_ms
+        } else {
+            ((wav_bytes.len().saturating_sub(44) as f64 / 32.0) as u64).max(500)
         };
 
         let (provider_name, model_name, language_opt, fmt_mode, dict, snippets, retention, output_mode, char_delay_ms) = {
@@ -455,7 +468,7 @@ impl PipelineState {
             )
         };
 
-        let audio_data = AudioData::new(wav_bytes, 16000, 1, start_time.elapsed().as_millis() as u64);
+        let audio_data = AudioData::new(wav_bytes, 16000, 1, speech_duration_ms);
 
         // 2. Transcribe complete speech
         self.set_state(&app, ProcessingState::Transcribing, None);
@@ -526,9 +539,8 @@ impl PipelineState {
         let verification = VerificationEngine::verify(&cleaned.raw_text, &cleaned.cleaned_text);
 
         let can_paste = VerificationEngine::can_safe_paste(verification.status);
-        let duration_ms = start_time.elapsed().as_millis() as u64;
 
-        // 5. Store History
+        // 5. Store History with accurate spoken speech duration
         let history_record = HistoryRecord {
             id: Uuid::new_v4().to_string(),
             created_at: chrono::Utc::now().to_rfc3339(),
@@ -537,7 +549,7 @@ impl PipelineState {
             model_name: model_name.clone(),
             raw_text: cleaned.raw_text.clone(),
             final_text: cleaned.cleaned_text.clone(),
-            duration_ms,
+            duration_ms: speech_duration_ms,
             verification_status: format!("{:?}", verification.status),
         };
         let _ = self.storage.insert_record(&history_record, retention);

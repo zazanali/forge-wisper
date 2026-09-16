@@ -40,3 +40,4 @@ uuid = { workspace = true }
 directories = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
+reqwest = { workspace = true }
