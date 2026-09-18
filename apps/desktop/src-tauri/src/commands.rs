@@ -48,21 +48,35 @@ pub fn update_settings(
     settings: AppSettings,
     state: State<'_, PipelineState>,
 ) -> Result<(), String> {
-    // 1. Sync OS startup autostart state
-    let _ = crate::set_autostart(settings.launch_at_startup);
-
-    // 2. Always save settings to disk and in-memory state
-    settings.save();
-    {
+    let (hotkey_changed, autostart_changed) = {
         let mut s = state.settings.lock().unwrap();
+        let hotkey_changed = s.hotkey != settings.hotkey;
+        let autostart_changed = s.launch_at_startup != settings.launch_at_startup;
         *s = settings.clone();
+        (hotkey_changed, autostart_changed)
+    };
+
+    // 1. Offload file saving to disk asynchronously so IPC returns instantly (< 1ms)
+    let settings_clone = settings.clone();
+    tauri::async_runtime::spawn(async move {
+        settings_clone.save();
+    });
+
+    // 2. Only invoke reg.exe process if autostart was actually changed
+    if autostart_changed {
+        let launch = settings.launch_at_startup;
+        tauri::async_runtime::spawn(async move {
+            let _ = crate::set_autostart(launch);
+        });
     }
 
-    // 3. Dynamically update OS global hotkey registration
-    let reg_res = crate::register_global_hotkey(&app, &settings.hotkey);
-    if let Err(err_msg) = reg_res {
-        println!("[Settings] Hotkey registration warning: {}", err_msg);
-        return Err(err_msg);
+    // 3. Only re-register Windows global hotkeys if the hotkey string actually changed
+    if hotkey_changed {
+        let app_handle = app.clone();
+        let hotkey = settings.hotkey.clone();
+        tauri::async_runtime::spawn(async move {
+            let _ = crate::register_global_hotkey(&app_handle, &hotkey);
+        });
     }
 
     Ok(())

@@ -43,7 +43,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     return "Today";
   });
   const [showTimeframeDropdown, setShowTimeframeDropdown] = useState(false);
-  const [showFormatDropdown, setShowFormatDropdown] = useState(false);
   const [showMicDropdown, setShowMicDropdown] = useState(false);
   const [showModeDropdown, setShowModeDropdown] = useState(false);
   const [showTopLanguageDropdown, setShowTopLanguageDropdown] = useState(false);
@@ -55,7 +54,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [durationSecs, setDurationSecs] = useState(0);
   const [liveSpokenText, setLiveSpokenText] = useState("");
 
-  const formatDropdownRef = useRef<HTMLDivElement>(null);
   const timeframeDropdownRef = useRef<HTMLDivElement>(null);
   const micDropdownRef = useRef<HTMLDivElement>(null);
   const modeDropdownRef = useRef<HTMLDivElement>(null);
@@ -89,9 +87,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
     // Close dropdowns on outside click
     const handleOutsideClick = (e: MouseEvent) => {
-      if (formatDropdownRef.current && !formatDropdownRef.current.contains(e.target as Node)) {
-        setShowFormatDropdown(false);
-      }
       if (timeframeDropdownRef.current && !timeframeDropdownRef.current.contains(e.target as Node)) {
         setShowTimeframeDropdown(false);
       }
@@ -300,19 +295,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     }
   };
 
-  const handleUpdateMode = async (mode: FormattingMode) => {
+  const handleUpdateMode = (mode: FormattingMode) => {
     if (!settings) return;
     const updated = { ...settings, formatting_mode: mode };
-    try {
-      await api.updateSettings(updated);
-      setSettings(updated);
-      setShowModeDropdown(false);
-    } catch (err) {
+    // 1. Optimistic instant UI update (0ms delay)
+    setSettings(updated);
+    setShowModeDropdown(false);
+    // 2. Persist in background asynchronously
+    api.updateSettings(updated).catch((err) => {
       console.error("Failed to update mode:", err);
-    }
+    });
   };
 
-  const handleUpdateProvider = async (provider: string) => {
+  const handleUpdateProvider = (provider: string) => {
     if (!settings) return;
     const defaultModel =
       provider === "local-whisper"
@@ -320,37 +315,37 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         : (settings.model === "base" || settings.model === "tiny" ? "whisper-large-v3-turbo" : settings.model);
 
     const updated = { ...settings, provider, model: defaultModel };
-    try {
-      await api.updateSettings(updated);
-      setSettings(updated);
-    } catch (err) {
+    // 1. Optimistic instant UI update (0ms delay)
+    setSettings(updated);
+    // 2. Persist in background asynchronously
+    api.updateSettings(updated).catch((err) => {
       console.error("Failed to update provider:", err);
-    }
+    });
   };
 
-  const handleSelectMicrophone = async (micName: string | null) => {
+  const handleSelectMicrophone = (micName: string | null) => {
     if (!settings) return;
     const updated = { ...settings, microphone: micName };
-    try {
-      await api.updateSettings(updated);
-      setSettings(updated);
-      setShowMicDropdown(false);
-    } catch (err) {
+    // 1. Optimistic instant UI update (0ms delay)
+    setSettings(updated);
+    setShowMicDropdown(false);
+    // 2. Persist in background asynchronously
+    api.updateSettings(updated).catch((err) => {
       console.error("Failed to update microphone:", err);
-    }
+    });
   };
 
-  const handleSelectLanguage = async (code: string) => {
+  const handleSelectLanguage = (code: string) => {
     if (!settings) return;
     const updated = { ...settings, language: code };
-    try {
-      await api.updateSettings(updated);
-      setSettings(updated);
-      setShowTopLanguageDropdown(false);
-      setTopLanguageSearch("");
-    } catch (err) {
+    // 1. Optimistic instant UI update (0ms delay)
+    setSettings(updated);
+    setShowTopLanguageDropdown(false);
+    setTopLanguageSearch("");
+    // 2. Persist in background asynchronously
+    api.updateSettings(updated).catch((err) => {
       console.error("Failed to update language:", err);
-    }
+    });
   };
 
   const getSelectedLanguageDisplay = () => {
@@ -670,7 +665,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                 <span className="text-[var(--text-muted)] font-mono">{metrics.wpm} WPM</span>
               </div>
 
-              {/* Action Buttons: Copy & Format Dropdown */}
+              {/* Action Buttons: Copy */}
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -689,38 +684,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                     </>
                   )}
                 </button>
-
-                {/* Format Dropdown */}
-                <div className="relative" ref={formatDropdownRef}>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowFormatDropdown(!showFormatDropdown);
-                    }}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[5px] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] border border-[var(--border)] text-[12px] text-[var(--text-primary)] font-medium transition-colors cursor-pointer"
-                  >
-                    <span>Format</span>
-                    <ChevronDown className="w-3 h-3 text-[var(--text-muted)]" />
-                  </button>
-
-                  {showFormatDropdown && (
-                    <div className="absolute right-0 mt-1 w-36 py-1 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-[6px] shadow-lg z-30 font-sans text-[12px]">
-                      {(["Smart", "Clean", "Structured", "Raw"] as FormattingMode[]).map((mode) => (
-                        <button
-                          key={mode}
-                          onClick={() => handleUpdateMode(mode)}
-                          className={`w-full text-left px-3 py-1.5 hover:bg-[var(--surface-hover)] transition-colors flex items-center justify-between ${
-                            settings?.formatting_mode === mode ? "text-[var(--accent)] font-medium" : "text-[var(--text-primary)]"
-                          }`}
-                        >
-                          <span>{mode}</span>
-                          {settings?.formatting_mode === mode && <Check className="w-3 h-3" />}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
               </div>
             </div>
           </div>
@@ -934,7 +897,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setShowMicDropdown(!showMicDropdown);
+                    const next = !showMicDropdown;
+                    setShowMicDropdown(next);
+                    if (next) {
+                      loadAudioDevices();
+                    }
                   }}
                   className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[5px] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] border border-[var(--border)] text-[12px] text-[var(--text-primary)] font-medium transition-colors cursor-pointer max-w-[280px]"
                 >

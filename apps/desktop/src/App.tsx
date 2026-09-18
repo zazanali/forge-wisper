@@ -109,10 +109,10 @@ export const App: React.FC = () => {
     const currentEffective = resolveEffectiveTheme(settings.theme);
     const newTheme = currentEffective === "light" ? "dark" : "light";
     const updated = { ...settings, theme: newTheme as "dark" | "light" | "system" };
+    setSettings(updated);
+    applyTheme(newTheme);
     try {
       await api.updateSettings(updated);
-      setSettings(updated);
-      applyTheme(newTheme);
     } catch (e) {
       console.error(e);
     }

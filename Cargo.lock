@@ -1647,7 +1647,7 @@ checksum = "aa9a19cbb55df58761df49b23516a86d432839add4af60fc256da840f66ed35b"
 
 [[package]]
 name = "forge-audio"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "cpal",
  "hound",
@@ -1660,7 +1660,7 @@ dependencies = [
 
 [[package]]
 name = "forge-cleanup"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "async-trait",
  "forge-transcription",
@@ -1673,7 +1673,7 @@ dependencies = [
 
 [[package]]
 name = "forge-desktop-app"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1705,7 +1705,7 @@ dependencies = [
 
 [[package]]
 name = "forge-output"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "arboard",
  "enigo",
@@ -1718,7 +1718,7 @@ dependencies = [
 
 [[package]]
 name = "forge-provider-groq"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "async-trait",
  "forge-transcription",
@@ -1732,7 +1732,7 @@ dependencies = [
 
 [[package]]
 name = "forge-provider-local-whisper"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "async-trait",
  "directories",
@@ -1748,7 +1748,7 @@ dependencies = [
 
 [[package]]
 name = "forge-security"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "directories",
  "keyring",
@@ -1759,7 +1759,7 @@ dependencies = [
 
 [[package]]
 name = "forge-storage"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "chrono",
  "directories",
@@ -1773,7 +1773,7 @@ dependencies = [
 
 [[package]]
 name = "forge-transcription"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1784,7 +1784,7 @@ dependencies = [
 
 [[package]]
 name = "forge-verification"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "lazy_static",
  "regex",

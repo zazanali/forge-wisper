@@ -63,31 +63,23 @@ jobs:
             ## Forge Wisper Desktop Setup (${{ github.ref_name }})
             
             Download the official cross-platform installer below:
-            - 🪟 **Windows**: `Forge.Wisper_0.1.3_x64-setup.exe` (NSIS Installer)
-            - 🍎 **macOS**: `Forge.Wisper_0.1.3_aarch64.dmg` (Apple Silicon M1–M4 & Intel)
+            - 🪟 **Windows**: `Forge.Wisper_0.1.4_x64-setup.exe` (NSIS Installer)
+            - 🍎 **macOS**: `Forge.Wisper_0.1.4_aarch64.dmg` (Apple Silicon M1–M4 & Intel)
             
-            ### ✨ What's New in This Release
-            - 🔄 **Antigravity-Style In-App Online Updater**:
-              - Automatically checks GitHub Releases in the background with zero startup lag.
-              - Unobtrusive floating top-banner notification when a new version is detected.
-              - Interactive "What's New" release notes modal with changelog preview, published date, and installer size.
-              - Real-time download streaming with live byte counters and progress percentage (`forge://update-download-progress`).
-              - 1-click seamless detached installer relaunch (`CREATE_BREAKAWAY_FROM_JOB | DETACHED_PROCESS` on Windows, native `.dmg` on macOS).
-              - Manual "Check for Updates" button with live status badges in Settings ("Up to Date" / "Update Available").
-            - 🌐 **45+ Multi-Language Engine with Live Search & Auto-Detect**:
-              - Full support for 45+ world languages (Urdu, Hindi, Arabic, Spanish, French, German, Chinese, Japanese, Russian, Turkish, etc.) plus intelligent "Auto-Detect".
-              - Searchable real-time language dropdown on the Dashboard for instant switching.
-              - Script-aware hallucination protection: non-Latin scripts (such as Arabic or Urdu) are preserved when speaking those languages, while accidental foreign scripts during English dictation are cleanly scrubbed.
-              - Reprocess audio from history with on-the-fly target language selection.
-            - ⚡ **Ultra-Fast In-Memory Secret Caching (<10ms Settings Load)**:
-              - Eliminated 5-6 second UI freezes when opening Settings or switching tabs by caching encrypted credentials in memory after initial vault unlock, with instant save confirmation.
-            - 📊 **Dynamic Accomplishment Metrics & Accurate Audio Duration**:
-              - Speech duration is computed directly from raw recorded PCM samples, providing accurate WPM and time-saved metrics across **Today**, **This Week**, and **All Time**.
-            - 📱 **Fluid Device-Adaptive Responsive Layout**:
-              - Responsive breakpoints supporting mobile, tablet, laptop, and multi-monitor desktop setups.
-              - Collapsible slide-over drawer navigation on compact displays with touch-friendly controls and backdrop blur.
-            - 💬 **Official AI NetworkX Community Hub**:
-              - Direct integration with [community.ainetworkx.com](https://community.ainetworkx.com) for sharing voice snippets, requesting features, and getting community support.
+            ### ✨ What's New in v0.1.4
+            - ⚡ **Zero-Latency Settings & Dropdowns**:
+              - Eliminated the 8–10 second delay when changing formatting mode, microphone, speech provider (Local Whisper / Groq Cloud), or language.
+              - Settings now change instantaneously (0ms visual latency) with optimistic UI updates and non-blocking asynchronous persistence.
+            - 🎙️ **Live Microphone Hotplug Detection**:
+              - Opening the microphone selector now dynamically re-probes audio devices so newly plugged-in USB/Bluetooth headsets appear immediately without requiring an app restart.
+            - 🎨 **Refined Dictation Header**:
+              - Streamlined the dictation card header by removing redundant duplicate format buttons, keeping the UI minimal, modern, and focused.
+            - 🌐 **Official AI NetworkX Community Branding**:
+              - Embedded the official AI NetworkX logo directly into the Community card in Settings with a clean, distraction-free footer.
+            - 🔄 **Dynamic Version & Update Status**:
+              - Integrated interactive spinning update arrows (`RefreshCw`) and automatic transition to upgrade indicator (`ArrowUpCircle`) when a new version is detected.
+            - 🛡️ **Enhanced Windows Defender Compatibility**:
+              - Registry autostart writes and Win32 global hotkey registrations are now smart-diffed and dispatched off the main thread to prevent external antivirus scan pauses.
             
             *Created by Ali Zazan • Built for creators and developers.*
           releaseDraft: false

@@ -59,8 +59,14 @@ Get the latest official release for your operating system from the **[GitHub Rel
 - **⚡ Real-Time Cursor Dictation**:
   - Transcribed text is typed directly into whatever text box, input field, or code editor you clicked on.
   - Zero intrusive preview popups blocking your screen — sleek minimal floating HUD only.
+- **⚡ Instant Settings Switching & Zero-Latency Setup**:
+  - Toggling transcription formatting modes, audio input devices, speech providers (Local Whisper / Groq Cloud), or languages now executes with **0ms visual delay** through optimistic UI state updates.
+  - Offloads disk file operations and utilizes smart in-memory state diffing to skip redundant Windows Registry (`reg.exe`) and Win32 hotkey re-registration hooks, eliminating 8–10s anti-virus scan pauses.
+- **🎙️ Live Microphone Hotplug Detection**:
+  - The microphone selector dynamically probes and detects newly connected USB or Bluetooth audio devices on demand, eliminating the need to restart the application when switching headsets.
 - **🔄 Antigravity-Style In-App Online Updater**:
   - Automatically queries GitHub Releases API in the background with zero impact on startup speed.
+  - **Dynamic State Indicators**: Features an interactive rotating sync indicator (`RefreshCw`) during checks and transitions to an upgrade indicator (`ArrowUpCircle`) when a newer version is ready.
   - **Floating Update Banner**: Unobtrusive top-centered notification when a new version is detected.
   - **"What's New" Release Modal**: Rich changelog preview, published date, installer size breakdown, and release highlights.
   - **Real-Time Download Streaming**: Live progress bar tracking downloaded megabytes and percentage (`forge://update-download-progress`).
@@ -94,8 +100,8 @@ Get the latest official release for your operating system from the **[GitHub Rel
   - Instant background initialization on system startup via Windows Registry and macOS LaunchAgents with zero UI freeze.
 - **🔒 Enterprise-Grade Key Storage**:
   - API keys are encrypted and stored in native OS secret vaults (**Windows Credential Manager & macOS Keychain**).
-- **💬 Official Community & Support Hub**:
-  - Integrated [community.ainetworkx.com](https://community.ainetworkx.com) forum for sharing custom voice macros, workflows, feature requests, and community support.
+- **💬 Official AI NetworkX Community Hub**:
+  - Direct integration with [community.ainetworkx.com](https://community.ainetworkx.com) for sharing custom voice macros, workflows, feature requests, and community support.
 
 ---
 

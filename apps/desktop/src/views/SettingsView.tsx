@@ -10,6 +10,7 @@ import {
 } from "../types";
 import { ForgeLogo } from "../components/ForgeLogo";
 import { UpdateModal } from "../components/UpdateModal";
+import aiNetworkXLogo from "@/assets/ainetworkx-logo.png";
 import {
   Zap,
   Cpu,
@@ -26,6 +27,8 @@ import {
   Palette,
   Trash2,
   Sparkles,
+  RefreshCw,
+  ArrowUpCircle,
   Sliders,
   Lock,
   Volume2,
@@ -38,7 +41,6 @@ import {
   Globe,
   Languages,
   Search,
-  Users,
   Download,
 } from "lucide-react";
 
@@ -1339,7 +1341,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                   <div className="text-[16px] font-semibold text-[var(--text-primary)] flex items-center gap-2">
                     Forge Wisper
                     <span className="text-[10px] font-mono text-[var(--accent)] px-2 py-0.5 rounded-[4px] bg-[var(--accent-subtle)] border border-[var(--accent-border)]">
-                      v0.1.3
+                      {updateCheckResult?.current_version ? `v${updateCheckResult.current_version}` : "v0.1.4"}
                     </span>
                   </div>
                   <p className="text-[13px] text-[var(--text-secondary)] mt-0.5">
@@ -1373,7 +1375,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-[6px] bg-[var(--accent-subtle)] text-[var(--accent)] shrink-0">
-                    <Sparkles className="w-5 h-5" />
+                    {updateCheckResult?.has_update ? (
+                      <ArrowUpCircle className="w-5 h-5 text-[var(--accent)]" />
+                    ) : (
+                      <RefreshCw className={`w-5 h-5 ${checkingUpdate ? "animate-spin" : ""}`} />
+                    )}
                   </div>
                   <div>
                     <div className="font-medium text-[14px] text-[var(--text-primary)] flex items-center gap-2 flex-wrap">
@@ -1393,7 +1399,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                         ? `A new version (${updateCheckResult.latest_version}) is ready with new features and optimizations.`
                         : updateCheckResult
                         ? `You are on the latest version of Forge Wisper (v${updateCheckResult.current_version}).`
-                        : `Current version: v0.1.3. Automatic update checks run smoothly in the background.`}
+                        : `Current version: v0.1.4. Automatic update checks run smoothly in the background.`}
                     </p>
                   </div>
                 </div>
@@ -1435,8 +1441,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
             {/* Community & Discussion Hub */}
             <div className="p-4 rounded-[8px] bg-[var(--surface-elevated)] border border-[var(--border)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-[6px] bg-[var(--accent-subtle)] text-[var(--accent)] shrink-0">
-                  <Users className="w-5 h-5" />
+                <div className="w-9 h-9 rounded-[7px] overflow-hidden bg-[var(--surface-primary)] border border-[var(--border)] shrink-0 flex items-center justify-center p-0.5 shadow-2xs">
+                  <img
+                    src={aiNetworkXLogo}
+                    alt="AI NetworkX"
+                    className="w-full h-full object-contain rounded-[5px]"
+                  />
                 </div>
                 <div>
                   <div className="font-medium text-[14px] text-[var(--text-primary)] flex items-center gap-2">
@@ -1465,16 +1475,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
             <div className="pt-2 flex flex-col sm:flex-row items-center justify-between text-[12px] text-[var(--text-muted)] gap-2 border-t border-[var(--border-subtle)]">
               <span>Crafted for high-speed voice workflows & clean code dictation.</span>
               <div className="flex items-center gap-3 flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => api.openUrl("https://community.ainetworkx.com")}
-                  className="font-mono text-[var(--accent)] hover:underline hover:text-[var(--accent-hover)] transition-colors inline-flex items-center gap-1 cursor-pointer bg-transparent border-0 p-0"
-                  title="Open Community Forum"
-                >
-                  <span>community.ainetworkx.com</span>
-                  <ExternalLink className="w-3 h-3 shrink-0" />
-                </button>
-                <span className="text-[var(--border)]">·</span>
                 <button
                   type="button"
                   onClick={() => api.openUrl("https://github.com/zazanali/forge-wisper")}
