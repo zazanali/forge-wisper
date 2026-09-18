@@ -262,16 +262,21 @@ pub fn launch_installer_and_exit(installer_path: &str) -> Result<(), String> {
         const DETACHED_PROCESS: u32 = 0x00000008;
         const CREATE_BREAKAWAY_FROM_JOB: u32 = 0x01000000;
 
-        let spawn_res = std::process::Command::new(&path)
+        let current_exe = std::env::current_exe()
+            .unwrap_or_else(|_| PathBuf::from("forge-desktop-app.exe"));
+
+        // Run the installer completely silently in the background (/S),
+        // wait for it to complete copying files, and automatically relaunch Forge Wisper.
+        let ps_cmd = format!(
+            "Start-Sleep -Seconds 1; Start-Process -FilePath '{}' -ArgumentList '/S' -Wait; Start-Process -FilePath '{}'",
+            path.display(),
+            current_exe.display()
+        );
+
+        let _ = std::process::Command::new("powershell")
+            .args(["-NoProfile", "-WindowStyle", "Hidden", "-Command", &ps_cmd])
             .creation_flags(DETACHED_PROCESS | CREATE_BREAKAWAY_FROM_JOB)
             .spawn();
-
-        if spawn_res.is_err() {
-            std::process::Command::new(&path)
-                .creation_flags(DETACHED_PROCESS)
-                .spawn()
-                .map_err(|e| format!("Failed to launch installer: {e}"))?;
-        }
 
         std::thread::sleep(Duration::from_millis(300));
         std::process::exit(0);
