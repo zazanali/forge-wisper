@@ -305,10 +305,10 @@ Thank you to everyone who has helped build and improve **Forge Wisper**!
     </td>
     <td align="center">
       <a href="https://github.com/TechnicalExpo">
-        <img src="https://github.com/TechnicalExpo.png" width="70px;" alt="TechnicalExpo" style="border-radius: 50%;" /><br />
-        <sub><b>TechnicalExpo</b></sub>
+        <img src="https://github.com/TechnicalExpo.png" width="70px;" alt="Arsalan Khan" style="border-radius: 50%;" /><br />
+        <sub><b>Arsalan Khan</b></sub>
       </a><br />
-      <sub>Feature Contributions</sub>
+      <sub>Parakeet Models, Local Runtime & Windows Dev Tooling</sub>
     </td>
   </tr>
 </table>

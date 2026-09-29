@@ -111,7 +111,7 @@ pnpm build
 
 - **Ali Zazan** ([@zazanali](https://github.com/zazanali)) - Creator & Core Architecture
 - **Ihtisham Hussain** ([@ihtisham-code](https://github.com/ihtisham-code)) - Native macOS Support & Packaging
-- **Arsalan Khan** ([@TechnicalExpo](https://github.com/TechnicalExpo)) - Parakeet Model Family & GPU Support
+- **Arsalan Khan** ([@TechnicalExpo](https://github.com/TechnicalExpo)) - Parakeet Models, Local Runtime & Windows Dev Tooling
 
 ---
 
