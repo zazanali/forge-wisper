@@ -171,23 +171,28 @@ forge-wisper/
 │   ├── desktop/                 # Tauri v2 + React 18 + TypeScript + Tailwind Desktop Client
 │   │   ├── src/                 # Application UI views, state, and components
 │   │   │   ├── views/           # Dashboard, History, ModelManager, Dictionary, Settings, FloatingRecorder
-│   │   │   ├── components/      # ForgeLogo and shared UI icon components
+│   │   │   ├── components/      # UI Design System (Card, Badge, Dropdown, Toggle) & icon assets
+│   │   │   ├── state/           # Centralized reactive application store (WPM, audio levels, metrics)
 │   │   │   ├── types/           # TypeScript interfaces, settings schema & supported languages
-│   │   │   └── lib/             # Tauri IPC bridge wrappers (audio, storage, shortcuts)
-│   │   └── src-tauri/           # Tauri Rust Application Entry, System Tray, Global Hotkeys & Native Bridge
+│   │   │   └── lib/             # Tauri IPC bridge wrappers (audio, storage, shortcuts, updater)
+│   │   └── src-tauri/           # Tauri Rust Application Entry, Single-Instance Mutex, Window Management
 │   └── macOS/                   # macOS build scripts, entitlements, and universal binary setup
 ├── crates/                      # Modular, Testable Rust Backend Micro-Crates
-│   ├── audio/                   # Low-latency microphone recording (cpal + hound + sinc decimation)
-│   ├── cleanup/                 # Rule-based cleanup, email normalization & foreign script filtering
-│   ├── output/                  # Native OS input injection & keyboard paste simulator
-│   ├── security/                # OS Keyring credential storage (Groq API keys)
-│   ├── storage/                 # SQLite database engine & transcript retention
-│   ├── transcription/           # Provider abstraction traits for speech engines
+│   ├── audio/                   # Low-latency microphone capture & anti-aliased sinc resampling
+│   ├── cleanup/                 # Rule-based text cleaner, voice macros & script hallucination filtering
+│   ├── output/                  # Native OS input injection & guaranteed modifier key release
+│   ├── security/                # Native OS Keyring credential storage (Windows Credential Manager / macOS Keychain)
+│   ├── storage/                 # SQLite database engine, search & retention manager
+│   ├── transcription/           # Engine abstraction traits & compute backend definitions
 │   └── verification/            # Entity preservation & safety verification layer
-├── models/                      # Local offline Whisper GGUF model storage directory
-└── providers/                   # Speech Recognition Providers
-    ├── groq/                    # Cloud Whisper via Groq LPU API
-    └── local-whisper/           # Offline on-device Whisper (whisper.cpp) with auto-discovery
+├── models/                      # Local speech models (Whisper GGML/GGUF & Parakeet ONNX directories)
+├── providers/                   # Speech Recognition Providers
+│   ├── groq/                    # Cloud Whisper via Groq LPU API (whisper-large-v3-turbo)
+│   └── local-whisper/           # Offline On-Device Speech Recognition Engine
+│       ├── src/lib.rs           # Whisper.cpp engine with streaming Hugging Face downloader
+│       ├── src/parakeet.rs      # NVIDIA FastConformer / Parakeet TDT ONNX engine (transcribe-rs)
+│       └── src/vulkan.rs        # Dynamic Vulkan GPU compute detection & dedicated VRAM scanner
+└── scripts/                     # Cross-platform development, dev runners & build cleanup tools
 ```
 
 ---

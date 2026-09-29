@@ -19,18 +19,24 @@ Thank you for your interest in contributing to **Forge Wisper**! We welcome cont
 Forge Wisper is structured as a **Cargo Workspace & Monorepo**:
 
 - **`apps/desktop/`**: Desktop GUI built with **Tauri v2**, **React 18.3**, **TypeScript**, and **Tailwind CSS**.
-- **`apps/desktop/src-tauri/`**: Tauri Rust backend, window management, state persistence, and global hotkey handling.
+  - `src/components/ui`: Custom Bento design system components (`Card`, `Badge`, `Dropdown`, `Toggle`).
+  - `src/state`: Centralized reactive application store (`appStore.ts`) managing WPM, live levels, and recording state.
+- **`apps/desktop/src-tauri/`**: Tauri Rust backend, native Win32 single-instance mutex, window management, state persistence, and global hotkeys.
 - **`crates/`**: Modular, isolated, and testable Rust crates:
-  - `crates/audio`: Audio capture and RMS volume level streaming (`cpal`, `hound`).
-  - `crates/cleanup`: Speech cleaning engine, spoken correction logic, and dictionary replacements.
-  - `crates/output`: Native OS keyboard injection and safe clipboard auto-paste.
-  - `crates/security`: OS Keyring credential storage (`keyring` crate).
-  - `crates/storage`: SQLite database engine and retention policy manager.
-  - `crates/transcription`: Speech recognition trait definitions and error models.
+  - `crates/audio`: Low-latency microphone capture and anti-aliased sinc resampling (`cpal`, `hound`).
+  - `crates/cleanup`: Speech cleaning engine, spoken correction logic, dictionary replacements, and script hallucination scrub.
+  - `crates/output`: Native OS keyboard injection and safe clipboard auto-paste with guaranteed modifier key release.
+  - `crates/security`: Native OS Keyring credential storage (`keyring` crate) with in-memory caching.
+  - `crates/storage`: SQLite database engine, search, and retention policy manager.
+  - `crates/transcription`: Speech recognition trait definitions, compute backend models, and error types.
   - `crates/verification`: Entity safety verification engine comparing raw transcripts with cleaned output.
 - **`providers/`**: Speech recognition engine implementations:
   - `providers/groq`: Fast cloud transcription using Groq LPUs (`whisper-large-v3-turbo`).
-  - `providers/local-whisper`: Offline on-device transcription with `whisper-rs` (whisper.cpp) and `transcribe-rs` (NVIDIA FastConformer Parakeet ONNX).
+  - `providers/local-whisper`: Dual offline on-device speech recognition engines:
+    - **Whisper.cpp Engine** (`src/lib.rs`): C/C++ embedded GGML/GGUF model inference and streaming Hugging Face downloader.
+    - **NVIDIA Parakeet ONNX Engine** (`src/parakeet.rs`): High-speed FastConformer-TDT local transcription via `transcribe-rs` with INT8 quantization.
+    - **Vulkan GPU Compute** (`src/vulkan.rs`): Dynamic hardware scanner enumerating dedicated GPU VRAM and routing execution between Vulkan GPU compute ($\ge 512\text{ MB}$ VRAM) and multi-threaded AVX2 CPU mode.
+- **`scripts/`**: Cross-platform build scripts, Windows PowerShell dev runner, and build artifact cleanup tools.
 
 ---
 
