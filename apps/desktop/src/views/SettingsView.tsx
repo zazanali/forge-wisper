@@ -2,11 +2,11 @@ import React, { useEffect, useState, useRef } from "react";
 import { api } from "../lib/tauri";
 import {
   SUPPORTED_LANGUAGES,
-  type AppSettings,
   type AudioDeviceInfo,
   type FormattingMode,
   type RetentionPolicy,
   type UpdateInfo,
+  type SettingsPatch,
 } from "../types";
 import { ForgeLogo } from "../components/ForgeLogo";
 import { UpdateModal } from "../components/UpdateModal";
@@ -43,6 +43,8 @@ import {
   Search,
   Download,
 } from "lucide-react";
+import { Card, Badge, Toggle, Dropdown } from "../components/ui";
+import { appStore, useAppStore } from "../state/appStore";
 
 interface SettingsViewProps {
   onNavigate?: (tab: any) => void;
@@ -60,8 +62,10 @@ export const formatKeyForDisplay = (keyStr: string): string => {
 };
 
 export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavigate }) => {
+  const store = useAppStore();
+  const settings = store.settings;
+
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>("engine");
-  const [settings, setSettings] = useState<AppSettings | null>(null);
   const [audioDevices, setAudioDevices] = useState<AudioDeviceInfo[]>([]);
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
@@ -81,6 +85,47 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
   const [updateCheckResult, setUpdateCheckResult] = useState<UpdateInfo | null>(null);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
 
+  // Hotkey Recorder State
+  const [isRecordingHotkey, setIsRecordingHotkey] = useState(false);
+  const [recordedKeys, setRecordedKeys] = useState<string[]>([]);
+  const [hotkeyFeedback, setHotkeyFeedback] = useState<string | null>(null);
+
+  // Microphone Live Testing
+  const [isMicTesting, setIsMicTesting] = useState(false);
+  const [micLevel, setMicLevel] = useState(0);
+  const intervalRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    api.getGroqKeyStatus()
+      .then((status) => setHasStoredKey(status))
+      .catch(() => setHasStoredKey(false));
+
+    api.getAudioDevices()
+      .then((devices) => setAudioDevices(devices || []))
+      .catch((e) => console.error("Audio devices load warning:", e));
+  }, []);
+
+  const handlePatch = async (patch: SettingsPatch) => {
+    try {
+      await appStore.patchSettings(patch);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
+      return true;
+    } catch (e: any) {
+      console.error("Patch settings error:", e);
+      const errorMsg = typeof e === "string" ? e : e?.message || "Failed to update settings";
+      setHotkeyFeedback(`❌ ${errorMsg}`);
+      setTimeout(() => setHotkeyFeedback(null), 5000);
+      return false;
+    }
+  };
+
+  const handleSelectLanguage = (code: string) => {
+    const isValid = code === "auto" || SUPPORTED_LANGUAGES.some((l) => l.code === code);
+    if (!isValid) return;
+    handlePatch({ language: code });
+  };
+
   const handleCheckForUpdates = async () => {
     setCheckingUpdate(true);
     try {
@@ -95,16 +140,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
       setCheckingUpdate(false);
     }
   };
-
-  // Hotkey Recorder State
-  const [isRecordingHotkey, setIsRecordingHotkey] = useState(false);
-  const [recordedKeys, setRecordedKeys] = useState<string[]>([]);
-  const [hotkeyFeedback, setHotkeyFeedback] = useState<string | null>(null);
-
-  // Microphone Live Testing
-  const [isMicTesting, setIsMicTesting] = useState(false);
-  const [micLevel, setMicLevel] = useState(0);
-  const intervalRef = useRef<number | null>(null);
 
   const toggleMicTest = async () => {
     if (isMicTesting) {
@@ -129,7 +164,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
       intervalRef.current = window.setInterval(async () => {
         try {
           const rms = await api.getMicLevel();
-          // Scale float RMS (0.0 to 0.4) to 0-100 percentage
           const percent = Math.min(100, Math.round(rms * 500));
           setMicLevel(percent);
         } catch {
@@ -149,138 +183,55 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
       e.preventDefault();
       e.stopPropagation();
 
-      if (e.key === "Escape") {
+      const k = e.key;
+      const code = e.code;
+
+      if (k === "Escape") {
         setIsRecordingHotkey(false);
         setRecordedKeys([]);
         return;
       }
 
-      const keys: string[] = [];
-      if (e.ctrlKey) keys.push("Control");
-      if (e.altKey) keys.push("Alt");
-      if (e.shiftKey) keys.push("Shift");
-      if (e.metaKey) keys.push("Super");
+      const parts: string[] = [];
+      if (e.ctrlKey) parts.push("Control");
+      if (e.metaKey) parts.push("Super");
+      if (e.altKey) parts.push("Alt");
+      if (e.shiftKey) parts.push("Shift");
 
-      const key = e.key;
-      const code = e.code;
-      const isModifier = ["Control", "Alt", "Shift", "Meta", "OS"].includes(key);
+      let mainKey = "";
+      if (code === "Space") mainKey = "Space";
+      else if (code.startsWith("F") && !isNaN(Number(code.slice(1)))) mainKey = code;
+      else if (code.startsWith("Key")) mainKey = code;
+      else if (code.startsWith("Digit")) mainKey = code;
+      else if (code === "Tab") mainKey = "Tab";
+      else if (code === "Backquote") mainKey = "Backquote";
+      else if (code === "Minus") mainKey = "Minus";
+      else if (code === "Equal") mainKey = "Equal";
+      else if (code === "BracketLeft") mainKey = "BracketLeft";
+      else if (code === "BracketRight") mainKey = "BracketRight";
+      else if (code === "Semicolon") mainKey = "Semicolon";
+      else if (code === "Quote") mainKey = "Quote";
+      else if (code === "Comma") mainKey = "Comma";
+      else if (code === "Period") mainKey = "Period";
+      else if (code === "Slash") mainKey = "Slash";
 
-      if (!isModifier) {
-        let hotkeyToken = code;
-        if (code && code.startsWith("Key") && code.length === 4) {
-          hotkeyToken = code;
-        } else if (code && code.startsWith("Digit") && code.length === 6) {
-          hotkeyToken = code;
-        } else if (code === "Space" || key === " ") {
-          hotkeyToken = "Space";
-        } else if (code === "Backquote" || key === "`" || key === "~") {
-          hotkeyToken = "Backquote";
-        } else if (key.startsWith("F") && !isNaN(Number(key.slice(1)))) {
-          hotkeyToken = key.toUpperCase();
-        } else if (key.length === 1 && /[a-zA-Z]/.test(key)) {
-          hotkeyToken = `Key${key.toUpperCase()}`;
-        } else if (key.length === 1 && /[0-9]/.test(key)) {
-          hotkeyToken = `Digit${key}`;
-        } else {
-          hotkeyToken = code || key;
-        }
+      if (mainKey && !parts.includes(mainKey)) {
+        parts.push(mainKey);
+      }
 
-        if (!keys.includes(hotkeyToken)) {
-          keys.push(hotkeyToken);
-        }
-
-        const finalHotkeyStr = keys.join("+");
-        if (settings && finalHotkeyStr.length > 0) {
-          const readable = finalHotkeyStr.split("+").map(formatKeyForDisplay).join(" + ");
-          setIsRecordingHotkey(false);
-          setRecordedKeys([]);
-          const success = await handleSave({ ...settings, hotkey: finalHotkeyStr });
-          if (success) {
-            setHotkeyFeedback(`✓ "${readable}" saved and active!`);
-            setTimeout(() => setHotkeyFeedback(null), 3500);
-          }
-        }
-      } else {
-        setRecordedKeys(keys);
+      if (parts.length > 0) {
+        setRecordedKeys(parts);
       }
     };
 
-    const handleKeyUp = (e: KeyboardEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-    };
-
-    window.addEventListener("keydown", handleKeyDown, true);
-    window.addEventListener("keyup", handleKeyUp, true);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown, true);
-      window.removeEventListener("keyup", handleKeyUp, true);
-    };
-  }, [isRecordingHotkey, settings]);
-
-  useEffect(() => {
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
-    try {
-      // Fetch settings and key status in parallel for instant render
-      const [s, keyStatus] = await Promise.all([
-        api.getSettings(),
-        api.getGroqKeyStatus().catch(() => false),
-      ]);
-      setSettings(s);
-      setHasStoredKey(keyStatus);
-
-      // Load audio devices in the background without blocking the settings view
-      api.getAudioDevices()
-        .then((devices) => setAudioDevices(devices || []))
-        .catch((e) => console.error("Audio devices load warning:", e));
-    } catch (e) {
-      console.error("Settings load error:", e);
-    }
-  };
-
-  const resolveEffectiveTheme = (themePreference?: string) => {
-    if (themePreference === "system") {
-      return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light";
-    }
-    return themePreference || "light";
-  };
-
-  const handleSave = async (updated: AppSettings) => {
-    try {
-      await api.updateSettings(updated);
-      setSettings(updated);
-      setSaveSuccess(true);
-      document.documentElement.setAttribute("data-theme", resolveEffectiveTheme(updated.theme));
-      setTimeout(() => setSaveSuccess(false), 2000);
-      return true;
-    } catch (e: any) {
-      console.error("Save settings error:", e);
-      const errorMsg = typeof e === "string" ? e : e?.message || "Failed to update settings";
-      setHotkeyFeedback(`❌ ${errorMsg}`);
-      setTimeout(() => setHotkeyFeedback(null), 5000);
-      return false;
-    }
-  };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isRecordingHotkey]);
 
   const saveGroqKey = async () => {
     const keyToSave = apiKeyInput.trim();
     if (!keyToSave) return;
     try {
-      // Optimistically update UI immediately (< 1ms)
       setApiKeyInput("");
       setHasStoredKey(true);
       setIsKeySaved(true);
@@ -322,11 +273,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
     }
   };
 
+
+
   if (!settings) {
     return (
-      <div className="p-12 text-center text-[var(--text-muted)] flex items-center justify-center gap-2 font-sans">
-        <Loader2 className="w-4 h-4 animate-spin text-[var(--accent)]" />
-        <span>Loading preferences...</span>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center gap-3 text-[var(--text-muted)] font-mono text-[13px]">
+          <Loader2 className="w-6 h-6 animate-spin text-[var(--accent)]" />
+          <span>Loading settings...</span>
+        </div>
       </div>
     );
   }
@@ -334,7 +289,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
   const categories: { id: SettingsCategory; label: string; icon: React.FC<{ className?: string }> }[] = [
     { id: "engine", label: "Engine & Audio", icon: Cpu },
     { id: "language", label: "Language & Speech", icon: Globe },
-    { id: "shortcuts", label: "Hotkeys & Voice", icon: Keyboard },
+    { id: "shortcuts", label: "Hotkeys", icon: Keyboard },
     { id: "security", label: "API Credentials", icon: Key },
     { id: "appearance", label: "Appearance & Privacy", icon: Palette },
     { id: "about", label: "About System", icon: Info },
@@ -345,24 +300,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-[18px] font-medium text-[var(--text-primary)] tracking-tight flex items-center gap-2">
+          <h2 className="text-[18px] font-semibold text-[var(--text-primary)] tracking-tight flex items-center gap-2">
             <Sliders className="w-5 h-5 text-[var(--accent)]" />
-            Preferences & System Settings
+            Preferences &amp; System Settings
           </h2>
           <p className="text-[13px] text-[var(--text-secondary)] mt-0.5">
-            Manage your speech recognition engine, hotkeys, credentials, and app aesthetics.
+            Configure your speech recognition engines, global shortcuts, audio devices, and privacy parameters.
           </p>
         </div>
 
         {saveSuccess && (
-          <span className="inline-flex items-center gap-1.5 text-[12px] text-[var(--success)] bg-[var(--success-bg)] px-2.5 py-1 rounded-[6px] border border-[var(--success-border)] font-medium font-mono shrink-0">
+          <span className="inline-flex items-center gap-1.5 text-[12px] text-[var(--success)] bg-[var(--success-bg)] px-2.5 py-1 rounded-[6px] border border-[var(--success-border)] font-medium font-mono shrink-0 animate-fadeIn">
             <Check className="w-3.5 h-3.5 stroke-[2.5]" /> Preferences Saved
           </span>
         )}
       </div>
 
       {/* Category Navigation Bar */}
-      <div className="flex items-center gap-1 p-1 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-[8px] overflow-x-auto">
+      <div className="flex items-center gap-1 p-1 bg-[var(--surface-elevated)] border border-[var(--border)] rounded-[8px] overflow-x-auto custom-scrollbar">
         {categories.map((cat) => {
           const Icon = cat.icon;
           const isActive = activeCategory === cat.id;
@@ -373,7 +328,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
               onClick={() => setActiveCategory(cat.id)}
               className={`flex-1 min-w-[120px] shrink-0 whitespace-nowrap flex items-center justify-center gap-2 px-3 py-1.5 rounded-[6px] text-[13px] font-medium transition-all cursor-pointer select-none ${
                 isActive
-                  ? "bg-[var(--accent-subtle)] text-[var(--accent)] border border-[var(--accent-border)] font-medium"
+                  ? "bg-[var(--accent-subtle)] text-[var(--accent)] border border-[var(--accent-border)] font-semibold shadow-2xs"
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-transparent"
               }`}
             >
@@ -390,7 +345,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
           {/* Provider Selection Cards */}
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
-              <h3 className="text-[12px] font-medium text-[var(--accent)] uppercase tracking-wider font-mono flex items-center gap-1.5">
+              <h3 className="text-[12px] font-semibold text-[var(--accent)] uppercase tracking-wider font-mono flex items-center gap-1.5">
                 <Cpu className="w-4 h-4" /> Active Transcription Provider
               </h3>
               <span className="text-[11px] font-mono text-[var(--text-muted)]">Select processing backend</span>
@@ -400,8 +355,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
               {/* Groq Cloud Option */}
               <div
                 onClick={() =>
-                  handleSave({
-                    ...settings,
+                  handlePatch({
                     provider: "groq",
                     model: "whisper-large-v3-turbo",
                   })
@@ -418,15 +372,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                       <Zap className="w-4 h-4" />
                     </div>
                     {settings.provider === "groq" ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] text-[10px] font-mono font-medium bg-[var(--accent-subtle)] text-[var(--accent)] border border-[var(--accent-border)]">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />
+                      <Badge variant="accent" hasDot>
                         ACTIVE
-                      </span>
+                      </Badge>
                     ) : (
                       <span className="text-[11px] text-[var(--text-muted)] font-mono">Cloud LPU</span>
                     )}
                   </div>
-                  <div className="font-medium text-[14px] text-[var(--text-primary)]">Groq Cloud Whisper</div>
+                  <div className="font-semibold text-[14px] text-[var(--text-primary)]">Groq Cloud Whisper</div>
                   <p className="text-[13px] text-[var(--text-secondary)] mt-1 leading-relaxed">
                     Ultra-low latency transcription powered by Groq custom LPUs (~200ms processing speed).
                   </p>
@@ -441,10 +394,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
               {/* Local Whisper Option */}
               <div
                 onClick={() =>
-                  handleSave({
-                    ...settings,
+                  handlePatch({
                     provider: "local-whisper",
-                    model: "base",
+                    model: "parakeet-v3-int8",
                   })
                 }
                 className={`forge-card p-4 rounded-[8px] transition-all cursor-pointer bg-[var(--surface-primary)] border flex flex-col justify-between ${
@@ -459,17 +411,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                       <Cpu className="w-4 h-4" />
                     </div>
                     {settings.provider === "local-whisper" ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] text-[10px] font-mono font-medium bg-[var(--accent-subtle)] text-[var(--accent)] border border-[var(--accent-border)]">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />
+                      <Badge variant="accent" hasDot>
                         ACTIVE
-                      </span>
+                      </Badge>
                     ) : (
                       <span className="text-[11px] text-[var(--text-muted)] font-mono">100% Offline</span>
                     )}
                   </div>
-                  <div className="font-medium text-[14px] text-[var(--text-primary)]">Local Offline Whisper</div>
+                  <div className="font-semibold text-[14px] text-[var(--text-primary)]">Local Offline Whisper &amp; Parakeet</div>
                   <p className="text-[13px] text-[var(--text-secondary)] mt-1 leading-relaxed">
-                    100% private offline transcription running on your local machine using GGML model binaries.
+                    100% private offline transcription running on your local machine using ONNX or GGML model runtimes.
                   </p>
                 </div>
 
@@ -481,85 +432,124 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
             </div>
           </div>
 
-          {/* 2-Column Grid: Model Architecture & Microphone Device */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
-            {/* Left Card: Whisper Model Architecture */}
-            <div className="forge-card p-4 space-y-3 rounded-[8px] border border-[var(--border)] bg-[var(--surface-primary)] flex flex-col justify-between">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-[13px] font-medium text-[var(--text-primary)] flex items-center gap-1.5">
-                    {settings.provider === "groq" ? (
-                      <Zap className="w-4 h-4 text-[var(--warning)]" />
-                    ) : (
-                      <Cpu className="w-4 h-4 text-[var(--accent)]" />
-                    )}
-                    {settings.provider === "groq" ? "Cloud Whisper Model" : "Local Whisper Model"}
-                  </label>
-                  <span className="text-[11px] font-mono text-[var(--text-muted)]">
-                    {settings.provider === "groq" ? "LPU Turbo" : "GGML Offline"}
-                  </span>
-                </div>
-
-                <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed">
-                  {settings.provider === "groq"
-                    ? "Select the cloud Whisper model for transcription accuracy vs inference speed."
-                    : "Select the local quantized GGML model architecture for offline transcription."}
-                </p>
-              </div>
-
-              <div>
-                <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-mono">
-                  Active Model
-                </label>
-                {settings.provider === "groq" ? (
-                  <select
-                    value={settings.model}
-                    onChange={(e) => handleSave({ ...settings, model: e.target.value })}
-                    className="w-full px-3 py-2 bg-[var(--surface-primary)] border border-[var(--border)] rounded-[7px] text-[13px] text-[var(--text-primary)] font-mono focus:outline-none focus:border-[var(--accent)] cursor-pointer"
-                  >
-                    <option value="whisper-large-v3-turbo">whisper-large-v3-turbo (Fastest Latency)</option>
-                    <option value="whisper-large-v3">whisper-large-v3 (Maximum Precision)</option>
-                  </select>
-                ) : (
-                  <select
-                    value={settings.model}
-                    onChange={(e) => handleSave({ ...settings, model: e.target.value })}
-                    className="w-full px-3 py-2 bg-[var(--surface-primary)] border border-[var(--border)] rounded-[7px] text-[13px] text-[var(--text-primary)] font-mono focus:outline-none focus:border-[var(--accent)] cursor-pointer"
-                  >
-                    <option value="base">base.bin (Default • 142 MB • Fast)</option>
-                    <option value="tiny">tiny.bin (75 MB • Ultra Lightweight)</option>
-                    <option value="small">small.bin (466 MB • Balanced)</option>
-                    <option value="medium">medium.bin (1.5 GB • High Accuracy)</option>
-                    <option value="large-v3">large-v3.bin (3.1 GB • Maximum Accuracy)</option>
-                  </select>
-                )}
-              </div>
-            </div>
-
-            {/* Right Card: Microphone Device & Live Input Level */}
-            <div className="forge-card p-4 space-y-3 rounded-[8px] border border-[var(--border)] bg-[var(--surface-primary)] flex flex-col justify-between">
+          {/* Model & Microphone Device Selection */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Left Card: Active Model Dropdown */}
+            <Card padding="md" className="flex flex-col justify-between space-y-3">
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <h4 className="text-[13px] font-medium text-[var(--text-primary)] flex items-center gap-1.5">
-                    <Mic className="w-4 h-4 text-[var(--accent)]" /> Microphone Device & Input
+                  <h4 className="text-[13px] font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-[var(--accent)]" /> Active Model Selection
                   </h4>
-                  <span className="text-[11px] font-mono text-[var(--text-muted)]">Auto-fallback</span>
+                  <Badge variant="default" size="sm" className="font-mono">
+                    {settings.provider === "groq" ? "Groq API" : "Local Engine"}
+                  </Badge>
                 </div>
 
-                <div>
-                  <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-mono">Selected Input Device</label>
-                  <select
+                <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed mb-3">
+                  {settings.provider === "groq"
+                    ? "Select the cloud Whisper model for transcription accuracy vs inference speed."
+                    : "Select the local model architecture (Parakeet V3 Int8 ONNX or quantized GGML)."}
+                </p>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] text-[var(--text-muted)] block font-mono">
+                    Model Architecture
+                  </label>
+                  {settings.provider === "groq" ? (
+                    <Dropdown
+                      value={settings.model}
+                      onChange={(val) => handlePatch({ model: val })}
+                      options={[
+                        {
+                          value: "whisper-large-v3-turbo",
+                          label: "whisper-large-v3-turbo",
+                          description: "Fastest Latency (~200ms)",
+                          badge: "Recommended",
+                        },
+                        {
+                          value: "whisper-large-v3",
+                          label: "whisper-large-v3",
+                          description: "Maximum Precision Accuracy",
+                        },
+                      ]}
+                    />
+                  ) : (
+                    <Dropdown
+                      value={settings.model}
+                      onChange={(val) => handlePatch({ model: val })}
+                      options={[
+                        {
+                          value: "parakeet-v3-int8",
+                          label: "parakeet-v3-int8",
+                          description: "Ultra-Fast Int8 ONNX • 600 MB",
+                          badge: "Fast Local",
+                        },
+                        {
+                          value: "base",
+                          label: "base.bin",
+                          description: "Default • 142 MB • Fast",
+                        },
+                        {
+                          value: "tiny",
+                          label: "tiny.bin",
+                          description: "Ultra Lightweight • 75 MB",
+                        },
+                        {
+                          value: "small",
+                          label: "small.bin",
+                          description: "Balanced Accuracy • 466 MB",
+                        },
+                        {
+                          value: "medium",
+                          label: "medium.bin",
+                          description: "High Accuracy • 1.5 GB",
+                        },
+                        {
+                          value: "large-v3",
+                          label: "large-v3.bin",
+                          description: "Maximum Accuracy • 3.1 GB",
+                        },
+                      ]}
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-2 text-[11px] font-mono text-[var(--text-muted)] flex items-center justify-between border-t border-[var(--border-subtle)]">
+                <span>Active: {settings.model}</span>
+                <span className="text-[var(--accent)] font-medium">Ready</span>
+              </div>
+            </Card>
+
+            {/* Right Card: Microphone Device & Live Input Level */}
+            <Card padding="md" className="flex flex-col justify-between space-y-3">
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <h4 className="text-[13px] font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
+                    <Mic className="w-4 h-4 text-[var(--accent)]" /> Microphone Device &amp; Input
+                  </h4>
+                  <Badge variant="default" size="sm" className="font-mono">Auto-fallback</Badge>
+                </div>
+
+                <div className="space-y-1 mb-2">
+                  <label className="text-[11px] text-[var(--text-muted)] block font-mono">Selected Input Device</label>
+                  <Dropdown
                     value={settings.microphone || ""}
-                    onChange={(e) => handleSave({ ...settings, microphone: e.target.value ? e.target.value : null })}
-                    className="w-full px-3 py-2 bg-[var(--surface-primary)] border border-[var(--border)] rounded-[7px] text-[13px] text-[var(--text-primary)] font-mono focus:outline-none focus:border-[var(--accent)] cursor-pointer"
-                  >
-                    <option value="">System Default Microphone (Automatic)</option>
-                    {audioDevices.map((d) => (
-                      <option key={d.name} value={d.name}>
-                        {d.name} {d.is_default ? "★ (OS Default)" : ""}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => handlePatch({ microphone: val ? val : null })}
+                    options={[
+                      {
+                        value: "",
+                        label: "System Default Microphone (Automatic)",
+                        description: "Auto-detect system audio input",
+                      },
+                      ...audioDevices.map((d) => ({
+                        value: d.name,
+                        label: d.name,
+                        badge: d.is_default ? "OS Default" : undefined,
+                      })),
+                    ]}
+                  />
                 </div>
               </div>
 
@@ -573,9 +563,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                     type="button"
                     onClick={toggleMicTest}
                     className={`px-3 py-1 rounded-[6px] text-[12px] font-medium transition-all cursor-pointer ${
-                      isMicTesting
-                        ? "btn-danger"
-                        : "btn-secondary"
+                      isMicTesting ? "btn-danger" : "btn-secondary"
                     }`}
                   >
                     {isMicTesting ? "Stop Meter" : "Test Microphone"}
@@ -584,9 +572,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
 
                 {isMicTesting && (
                   <div className="space-y-1 pt-1 animate-fadeIn">
-                    <div className="h-2 bg-[var(--surface-elevated)] rounded-[999px] overflow-hidden border border-[var(--border)]">
+                    <div className="h-2 bg-[var(--surface-elevated)] rounded-full overflow-hidden border border-[var(--border)]">
                       <div
-                        className={`h-full rounded-[999px] transition-all duration-75 ${
+                        className={`h-full rounded-full transition-all duration-75 ${
                           micLevel > 60
                             ? "bg-[var(--warning)]"
                             : micLevel > 10
@@ -606,16 +594,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                   </div>
                 )}
               </div>
-            </div>
+            </Card>
           </div>
         </div>
       )}
 
-      {/* CATEGORY: Language & Speech */}
+      {/* CATEGORY 2: Language & Speech */}
       {activeCategory === "language" && (
         <div className="space-y-5 animate-fadeIn">
           {/* Active Language Hero Card */}
-          <div className="forge-card p-5 rounded-[12px] border border-[var(--border)] bg-[var(--surface-primary)] shadow-sm space-y-4">
+          <Card padding="lg" className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-[8px] bg-[var(--accent-subtle)] border border-[var(--accent-border)] flex items-center justify-center text-[var(--accent)]">
@@ -626,20 +614,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                     Speech Recognition Language
                   </h3>
                   <p className="text-[12px] text-[var(--text-muted)]">
-                    Whisper AI automatically detects or transcribes 99+ global languages
+                    Whisper AI automatically detects or specializes transcription across 99+ global languages
                   </p>
                 </div>
               </div>
 
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[4px] text-[11px] font-mono font-medium bg-[var(--accent-subtle)] text-[var(--accent)] border border-[var(--accent-border)]">
-                {(!settings.language || settings.language === "auto") ? "✨ AUTO-DETECT ACTIVE" : `LOCKED: ${settings.language.toUpperCase()}`}
-              </span>
+              <Badge variant="accent" className="font-mono">
+                {!settings.language || settings.language === "auto"
+                  ? "✨ AUTO-DETECT ACTIVE"
+                  : `LOCKED: ${settings.language.toUpperCase()}`}
+              </Badge>
             </div>
 
             {/* Quick 1-Click Popular Language Pills */}
             <div className="pt-2">
               <span className="text-[11px] font-mono text-[var(--text-muted)] block mb-2">
-                Popular & Frequently Used:
+                Popular &amp; Frequently Used:
               </span>
               <div className="flex items-center gap-2 flex-wrap">
                 {[
@@ -661,10 +651,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                     <button
                       key={lang.code}
                       type="button"
-                      onClick={() => handleSave({ ...settings, language: lang.code })}
+                      onClick={() => handleSelectLanguage(lang.code)}
                       className={`px-3 py-1.5 rounded-[7px] text-[12px] font-medium transition-all cursor-pointer flex items-center gap-1.5 border ${
                         isSelected
-                          ? "bg-[var(--accent-subtle)] text-[var(--accent)] border-[var(--accent)] font-semibold shadow-xs ring-1 ring-[var(--accent)]"
+                          ? "bg-[var(--accent-subtle)] text-[var(--accent)] border-[var(--accent)] font-semibold shadow-2xs ring-1 ring-[var(--accent)]"
                           : "bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-[var(--border)]"
                       }`}
                     >
@@ -676,10 +666,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                 })}
               </div>
             </div>
-          </div>
+          </Card>
 
           {/* Searchable 99+ Languages Grid */}
-          <div className="forge-card p-4 sm:p-5 rounded-[8px] border border-[var(--border)] bg-[var(--surface-primary)] space-y-4">
+          <Card padding="md" className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h4 className="text-[13px] font-semibold text-[var(--text-primary)] flex items-center gap-2">
@@ -719,10 +709,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                   <button
                     key={lang.code}
                     type="button"
-                    onClick={() => handleSave({ ...settings, language: lang.code })}
+                    onClick={() => handleSelectLanguage(lang.code)}
                     className={`p-2.5 rounded-[7px] border text-left transition-all cursor-pointer flex items-center justify-between ${
                       isSelected
-                        ? "border-[var(--accent)] bg-[var(--accent-subtle)] ring-1 ring-[var(--accent)]"
+                        ? "border-[var(--accent)] bg-[var(--accent-subtle)] ring-1 ring-[var(--accent)] shadow-2xs"
                         : "border-[var(--border)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)]"
                     }`}
                   >
@@ -750,16 +740,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                 );
               })}
             </div>
-          </div>
+          </Card>
         </div>
       )}
 
-      {/* CATEGORY 2: Hotkeys & Voice */}
+      {/* CATEGORY 3: Hotkeys & Dictation Controls */}
       {activeCategory === "shortcuts" && (
         <div className="space-y-5 animate-fadeIn">
-          {/* Global Hotkey Config - Vibe Coded Hero */}
-          <div className="forge-card p-5 rounded-[12px] border border-[var(--border)] bg-[var(--surface-primary)] shadow-sm space-y-4">
-            {/* Header */}
+          {/* Global Hotkey Config */}
+          <Card padding="lg" className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-[8px] bg-[var(--accent-subtle)] border border-[var(--accent-border)] flex items-center justify-center text-[var(--accent)]">
@@ -767,10 +756,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                 </div>
                 <div>
                   <h3 className="text-[14px] font-semibold text-[var(--text-primary)] tracking-tight">
-                    Global Shortcut
+                    Global System Shortcut
                   </h3>
                   <p className="text-[12px] text-[var(--text-muted)]">
-                    Hold or press anywhere in Windows to transcribe
+                    Hold or press anywhere in Windows to trigger audio dictation
                   </p>
                 </div>
               </div>
@@ -779,7 +768,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                 <button
                   type="button"
                   onClick={() => {
-                    handleSave({ ...settings, hotkey: "Control+Space" });
+                    handlePatch({ hotkey: "Control+Space" });
                     setHotkeyFeedback("✓ Reset to default Ctrl + Space");
                     setTimeout(() => setHotkeyFeedback(null), 3000);
                   }}
@@ -855,7 +844,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                           const finalStr = recordedKeys.join("+");
                           setIsRecordingHotkey(false);
                           setRecordedKeys([]);
-                          const success = await handleSave({ ...settings, hotkey: finalStr });
+                          const success = await handlePatch({ hotkey: finalStr });
                           if (success) {
                             const readable = finalStr.split("+").map(formatKeyForDisplay).join(" + ");
                             setHotkeyFeedback(`✓ "${readable}" saved`);
@@ -914,13 +903,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                     key={preset.value}
                     type="button"
                     onClick={() => {
-                      handleSave({ ...settings, hotkey: preset.value });
+                      handlePatch({ hotkey: preset.value });
                       setHotkeyFeedback(`✓ Set to ${preset.label}`);
                       setTimeout(() => setHotkeyFeedback(null), 3000);
                     }}
                     className={`px-2.5 py-1 rounded-[6px] text-[11px] font-mono transition-all cursor-pointer border ${
                       isCurrent
-                        ? "bg-[var(--accent-subtle)] text-[var(--accent)] border-[var(--accent-border)] font-semibold shadow-xs"
+                        ? "bg-[var(--accent-subtle)] text-[var(--accent)] border-[var(--accent-border)] font-semibold shadow-2xs"
                         : "bg-[var(--surface-elevated)] hover:bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-[var(--border)]"
                     }`}
                   >
@@ -930,7 +919,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
               })}
             </div>
 
-            {/* Subtle Inline Feedback */}
+            {/* Inline Feedback */}
             {hotkeyFeedback && (
               <div
                 className={`p-2.5 rounded-[8px] text-[12px] font-mono font-medium animate-fadeIn flex items-center gap-2 border ${
@@ -947,89 +936,105 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                 <span>{hotkeyFeedback}</span>
               </div>
             )}
-          </div>
+          </Card>
 
           {/* Trigger Mode & Formatting Mode */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Trigger Mode Card */}
-            <div className="forge-card p-4 space-y-3 rounded-[8px] border border-[var(--border)] bg-[var(--surface-primary)] flex flex-col justify-between">
+            {/* Trigger Mode Card with Toggle */}
+            <Card padding="md" className="flex flex-col justify-between space-y-3">
               <div>
-                <h4 className="text-[13px] font-medium text-[var(--text-primary)] flex items-center gap-1.5">
-                  <Radio className="w-4 h-4 text-[var(--accent)]" /> Trigger Mode
-                </h4>
-                <p className="text-[13px] text-[var(--text-secondary)] mt-1">
-                  Choose how your hotkey activates recording.
+                <div className="flex items-center justify-between mb-1">
+                  <h4 className="text-[13px] font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
+                    <Radio className="w-4 h-4 text-[var(--accent)]" /> Trigger Activation Mode
+                  </h4>
+                  <Badge variant={settings.is_toggle_mode ? "accent" : "default"} size="sm" className="font-mono">
+                    {settings.is_toggle_mode ? "Toggle Mode" : "Push-to-Talk"}
+                  </Badge>
+                </div>
+                <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed">
+                  Choose between clicking once to start/stop or holding the shortcut down during speech.
                 </p>
               </div>
 
-              <div className="flex gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => handleSave({ ...settings, is_toggle_mode: false })}
-                  className={`flex-1 py-2 px-3 rounded-[6px] text-[12px] font-medium border transition-all cursor-pointer text-center ${
-                    !settings.is_toggle_mode
-                      ? "border-[var(--accent)] bg-[var(--accent-subtle)] text-[var(--accent)]"
-                      : "border-[var(--border)] bg-[var(--surface-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                  }`}
-                >
-                  Push-to-Talk (Hold)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSave({ ...settings, is_toggle_mode: true })}
-                  className={`flex-1 py-2 px-3 rounded-[6px] text-[12px] font-medium border transition-all cursor-pointer text-center ${
-                    settings.is_toggle_mode
-                      ? "border-[var(--accent)] bg-[var(--accent-subtle)] text-[var(--accent)]"
-                      : "border-[var(--border)] bg-[var(--surface-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                  }`}
-                >
-                  Toggle (Click to Start)
-                </button>
+              <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between">
+                <div>
+                  <span className="text-[12px] font-medium text-[var(--text-primary)] block">
+                    Toggle Mode (Single Click)
+                  </span>
+                  <span className="text-[11px] text-[var(--text-muted)] font-mono">
+                    {settings.is_toggle_mode ? "Click to start, click to stop" : "Hold down while speaking"}
+                  </span>
+                </div>
+                <Toggle
+                  checked={settings.is_toggle_mode}
+                  onChange={(checked) => handlePatch({ is_toggle_mode: checked })}
+                />
               </div>
-            </div>
+            </Card>
 
-            {/* Default Formatting Mode */}
-            <div className="forge-card p-4 space-y-3 rounded-[8px] border border-[var(--border)] bg-[var(--surface-primary)] flex flex-col justify-between">
+            {/* Default Formatting Mode with Dropdown */}
+            <Card padding="md" className="flex flex-col justify-between space-y-3">
               <div>
-                <h4 className="text-[13px] font-medium text-[var(--text-primary)] flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-[var(--accent)]" /> Default Formatting Mode
-                </h4>
-                <p className="text-[13px] text-[var(--text-secondary)] mt-1">
-                  How text is cleaned and structured before writing.
+                <div className="flex items-center justify-between mb-1">
+                  <h4 className="text-[13px] font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-[var(--accent)]" /> Default Formatting Mode
+                  </h4>
+                  <Badge variant="default" size="sm" className="font-mono">{settings.formatting_mode}</Badge>
+                </div>
+                <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed">
+                  Controls punctuation, casing, filler words, and outline bullets.
                 </p>
               </div>
 
-              <select
-                value={settings.formatting_mode}
-                onChange={(e) => handleSave({ ...settings, formatting_mode: e.target.value as FormattingMode })}
-                className="w-full px-3 py-2 bg-[var(--surface-primary)] border border-[var(--border)] rounded-[7px] text-[13px] text-[var(--text-primary)] font-mono focus:outline-none focus:border-[var(--accent)] cursor-pointer"
-              >
-                <option value="Smart">Smart (Contextual verbal self-corrections)</option>
-                <option value="Clean">Clean (Punctuation, casing & filler removal)</option>
-                <option value="Structured">Structured (Convert spoken outlines into bullet points)</option>
-                <option value="Raw">Raw (Verbatim speech without modification)</option>
-              </select>
-            </div>
+              <div className="pt-2 border-t border-[var(--border-subtle)]">
+                <Dropdown
+                  value={settings.formatting_mode}
+                  onChange={(val) => handlePatch({ formatting_mode: val as FormattingMode })}
+                  options={[
+                    {
+                      value: "Smart",
+                      label: "Smart (Verbal self-corrections)",
+                      description: "Contextual speech cleaning and verbal self-correction removal",
+                    },
+                    {
+                      value: "Clean",
+                      label: "Clean (Punctuation & filler removal)",
+                      description: "Cleans um, uh, casing and standardizes punctuation",
+                    },
+                    {
+                      value: "Structured",
+                      label: "Structured (Outlines to bullets)",
+                      description: "Converts spoken lists and outlines into markdown bullet points",
+                    },
+                    {
+                      value: "Raw",
+                      label: "Raw (Verbatim speech)",
+                      description: "Exact speech without any post-processing modifications",
+                    },
+                  ]}
+                />
+              </div>
+            </Card>
           </div>
 
-          {/* Dictation Output Style Card */}
-          <div className="forge-card p-4 space-y-3 rounded-[8px] border border-[var(--border)] bg-[var(--surface-primary)]">
+          {/* Dictation Output Mode */}
+          <Card padding="md" className="space-y-3">
             <div className="flex items-center justify-between">
               <div>
                 <h4 className="text-[13px] font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
                   <Zap className="w-4 h-4 text-[var(--warning)]" /> Dictation Output Mode
                 </h4>
                 <p className="text-[13px] text-[var(--text-secondary)] mt-0.5">
-                  Control how recognized words are written into your active application.
+                  Control how recognized words are written into your active Windows application.
                 </p>
               </div>
-              <span className="text-[11px] font-mono text-[var(--accent)]">In-Place Typing</span>
+              <Badge variant="accent" size="sm" className="font-mono">In-Place Insertion</Badge>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
               <button
                 type="button"
-                onClick={() => handleSave({ ...settings, output_mode: "realtime_stream" })}
+                onClick={() => handlePatch({ output_mode: "realtime_stream" })}
                 className={`p-3 rounded-[8px] text-left border transition-all cursor-pointer ${
                   (settings.output_mode || "realtime_stream") === "realtime_stream"
                     ? "border-[var(--accent)] bg-[var(--accent-subtle)]"
@@ -1049,7 +1054,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
 
               <button
                 type="button"
-                onClick={() => handleSave({ ...settings, output_mode: "progressive" })}
+                onClick={() => handlePatch({ output_mode: "progressive" })}
                 className={`p-3 rounded-[8px] text-left border transition-all cursor-pointer ${
                   settings.output_mode === "progressive"
                     ? "border-[var(--accent)] bg-[var(--accent-subtle)]"
@@ -1069,7 +1074,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
 
               <button
                 type="button"
-                onClick={() => handleSave({ ...settings, output_mode: "instant_paste" })}
+                onClick={() => handlePatch({ output_mode: "instant_paste" })}
                 className={`p-3 rounded-[8px] text-left border transition-all cursor-pointer ${
                   settings.output_mode === "instant_paste"
                     ? "border-[var(--accent)] bg-[var(--accent-subtle)]"
@@ -1087,21 +1092,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                 </p>
               </button>
             </div>
-          </div>
+          </Card>
         </div>
       )}
 
-      {/* CATEGORY 3: API Credentials */}
+
+
+      {/* CATEGORY 5: API Credentials */}
       {activeCategory === "security" && (
         <div className="space-y-5 animate-fadeIn">
-          <div className="forge-card p-4 space-y-3.5 rounded-[8px] border border-[var(--border)] bg-[var(--surface-primary)]">
+          <Card padding="md" className="space-y-3.5">
             <div className="flex items-center justify-between">
-              <h3 className="text-[14px] font-medium text-[var(--text-primary)] flex items-center gap-2">
+              <h3 className="text-[14px] font-semibold text-[var(--text-primary)] flex items-center gap-2">
                 <Key className="w-4 h-4 text-[var(--warning)]" /> Groq Cloud API Credentials
               </h3>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] text-[11px] font-mono bg-[var(--surface-elevated)] text-[var(--accent)] border border-[var(--border)]">
-                <Lock className="w-3 h-3" /> OS Keyring Secured
-              </span>
+              <Badge variant="accent" size="sm" className="font-mono">
+                <Lock className="w-3 h-3 mr-1 inline" /> OS Keyring Secured
+              </Badge>
             </div>
 
             <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed">
@@ -1178,16 +1185,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                 </div>
               )}
             </div>
-          </div>
+          </Card>
         </div>
       )}
 
-      {/* CATEGORY 4: Appearance & Privacy */}
+      {/* CATEGORY 6: Appearance & Privacy */}
       {activeCategory === "appearance" && (
         <div className="space-y-5 animate-fadeIn">
           {/* Theme Selector */}
           <div className="space-y-2.5">
-            <h3 className="text-[12px] font-medium text-[var(--accent)] uppercase tracking-wider font-mono flex items-center gap-1.5">
+            <h3 className="text-[12px] font-semibold text-[var(--accent)] uppercase tracking-wider font-mono flex items-center gap-1.5">
               <Palette className="w-4 h-4" /> Interface Theme
             </h3>
 
@@ -1195,7 +1202,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
               {/* Obsidian Dark */}
               <button
                 type="button"
-                onClick={() => handleSave({ ...settings, theme: "dark" })}
+                onClick={() => handlePatch({ theme: "dark" })}
                 className={`forge-card p-4 rounded-[8px] text-left transition-all bg-[var(--surface-primary)] border cursor-pointer ${
                   (settings.theme || "dark") === "dark"
                     ? "border-[var(--accent)] bg-[var(--accent-subtle)]"
@@ -1219,7 +1226,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
               {/* Clean Slate Light */}
               <button
                 type="button"
-                onClick={() => handleSave({ ...settings, theme: "light" })}
+                onClick={() => handlePatch({ theme: "light" })}
                 className={`forge-card p-4 rounded-[8px] text-left transition-all bg-[var(--surface-primary)] border cursor-pointer ${
                   settings.theme === "light"
                     ? "border-[var(--accent)] bg-[var(--accent-subtle)]"
@@ -1234,7 +1241,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                     <span className="w-2 h-2 rounded-full bg-[var(--accent)]" />
                   )}
                 </div>
-                <div className="font-medium text-[14px] text-[var(--text-primary)]">Clean Slate Light</div>
+                <div className="font-semibold text-[14px] text-[var(--text-primary)]">Clean Slate Light</div>
                 <p className="text-[12px] text-[var(--text-secondary)] mt-1">
                   Crisp daytime light palette for bright desktop environments.
                 </p>
@@ -1243,7 +1250,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
               {/* System Sync */}
               <button
                 type="button"
-                onClick={() => handleSave({ ...settings, theme: "system" })}
+                onClick={() => handlePatch({ theme: "system" })}
                 className={`forge-card p-4 rounded-[8px] text-left transition-all bg-[var(--surface-primary)] border cursor-pointer ${
                   settings.theme === "system"
                     ? "border-[var(--accent)] bg-[var(--accent-subtle)]"
@@ -1258,7 +1265,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                     <span className="w-2 h-2 rounded-full bg-[var(--accent)]" />
                   )}
                 </div>
-                <div className="font-medium text-[14px] text-[var(--text-primary)]">System Sync</div>
+                <div className="font-semibold text-[14px] text-[var(--text-primary)]">System Sync</div>
                 <p className="text-[12px] text-[var(--text-secondary)] mt-1">
                   Automatically syncs with your Windows OS dark/light mode.
                 </p>
@@ -1267,30 +1274,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
           </div>
 
           {/* System Startup & Background Auto-Launch */}
-          <div className="forge-card p-4 space-y-3 rounded-[8px] border border-[var(--border)] bg-[var(--surface-primary)]">
+          <Card padding="md" className="space-y-3">
             <div className="flex items-center justify-between">
               <div>
                 <h4 className="text-[14px] font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
-                  <Monitor className="w-4 h-4 text-[var(--accent)]" /> System Startup & Background Autostart
+                  <Monitor className="w-4 h-4 text-[var(--accent)]" /> System Startup &amp; Background Autostart
                 </h4>
                 <p className="text-[13px] text-[var(--text-secondary)] mt-0.5">
-                  Starts Forge Wisper silently in the system tray when your PC boots.
+                  Starts Forge Wisper silently in the system tray when your Windows PC boots.
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => handleSave({ ...settings, launch_at_startup: !settings.launch_at_startup })}
-                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  settings.launch_at_startup ? "bg-[var(--accent)]" : "bg-[var(--surface-elevated)] border-[var(--border)]"
-                }`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                    settings.launch_at_startup ? "translate-x-5" : "translate-x-0"
-                  }`}
-                />
-              </button>
+              <Toggle
+                checked={!!settings.launch_at_startup}
+                onChange={(checked) => handlePatch({ launch_at_startup: checked })}
+              />
             </div>
 
             <div className="p-2.5 rounded-[6px] bg-[var(--surface-elevated)] border border-[var(--border)] text-[12px] text-[var(--text-secondary)] flex items-center justify-between font-mono">
@@ -1299,53 +1297,69 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                 {settings.launch_at_startup ? "Enabled (0ms UI lag)" : "Disabled"}
               </span>
             </div>
-          </div>
+          </Card>
 
           {/* History Retention Policy */}
-          <div className="forge-card p-4 space-y-2.5 rounded-[8px] border border-[var(--border)] bg-[var(--surface-primary)]">
+          <Card padding="md" className="space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="text-[14px] font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
-                <Shield className="w-4 h-4 text-[var(--accent)]" /> History Retention & Disk Security
+                <Shield className="w-4 h-4 text-[var(--accent)]" /> History Retention &amp; Disk Security
               </h4>
-              <span className="text-[11px] font-mono text-[var(--accent)]">Zero Audio On Disk</span>
+              <Badge variant="accent" size="sm" className="font-mono">Zero Audio On Disk</Badge>
             </div>
 
-            <div>
-              <label className="text-[11px] text-[var(--text-muted)] block mb-1 font-mono">Transcript Retention</label>
-              <select
+            <div className="space-y-1">
+              <label className="text-[11px] text-[var(--text-muted)] block font-mono">Transcript Retention Policy</label>
+              <Dropdown
                 value={settings.retention_policy}
-                onChange={(e) => handleSave({ ...settings, retention_policy: e.target.value as RetentionPolicy })}
-                className="w-full px-3 py-2 bg-[var(--surface-primary)] border border-[var(--border)] rounded-[7px] text-[13px] text-[var(--text-primary)] font-mono focus:outline-none focus:border-[var(--accent)] cursor-pointer"
-              >
-                <option value="Days30">Keep Transcripts for 30 Days (Default)</option>
-                <option value="Days7">Keep Transcripts for 7 Days</option>
-                <option value="Forever">Keep Transcripts Forever (Local SQLite)</option>
-                <option value="Off">Do Not Save Transcripts (Incognito Mode)</option>
-              </select>
+                onChange={(val) => handlePatch({ retention_policy: val as RetentionPolicy })}
+                options={[
+                  {
+                    value: "Days30",
+                    label: "Keep Transcripts for 30 Days (Default)",
+                    description: "Auto-prunes history records older than 30 days",
+                  },
+                  {
+                    value: "Days7",
+                    label: "Keep Transcripts for 7 Days",
+                    description: "Auto-prunes history records older than one week",
+                  },
+                  {
+                    value: "Forever",
+                    label: "Keep Transcripts Forever (Local SQLite)",
+                    description: "Never deletes history records automatically",
+                  },
+                  {
+                    value: "Off",
+                    label: "Do Not Save Transcripts (Incognito Mode)",
+                    description: "Transcripts exist only in-memory and are never stored to SQLite",
+                  },
+                ]}
+              />
             </div>
             <p className="text-[12px] text-[var(--text-muted)] leading-relaxed">
               Forge Wisper guarantees that raw audio recordings are processed completely in-memory and are never stored or cached to disk.
             </p>
-          </div>
+          </Card>
         </div>
       )}
 
-      {/* CATEGORY 5: About & System */}
+      {/* CATEGORY 7: About & System */}
       {activeCategory === "about" && (
         <div className="space-y-5 animate-fadeIn">
-          <div className="forge-card p-5 rounded-[8px] border border-[var(--border)] bg-[var(--surface-primary)] space-y-4">
+          <Card padding="lg" className="space-y-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-[var(--border-subtle)] pb-4">
               <div className="flex items-center gap-3">
                 <ForgeLogo size={42} />
                 <div>
                   <div className="text-[16px] font-semibold text-[var(--text-primary)] flex items-center gap-2">
                     Forge Wisper
-                    <span className="text-[10px] font-mono text-[var(--accent)] px-2 py-0.5 rounded-[4px] bg-[var(--accent-subtle)] border border-[var(--accent-border)]">
-                      {updateCheckResult?.current_version ? `v${updateCheckResult.current_version}` : "v0.1.4"}
-                    </span>
+                    <Badge variant="accent" size="sm" className="font-mono">
+                      {updateCheckResult?.current_version ? `v${updateCheckResult.current_version}` : "v0.1.5"}
+                    </Badge>
                   </div>
                   <p className="text-[13px] text-[var(--text-secondary)] mt-0.5">
-                    Cross-platform, low-latency AI speech dictation engine for Windows & macOS.
+                    Cross-platform, low-latency AI speech dictation engine for Windows &amp; macOS.
                   </p>
                 </div>
               </div>
@@ -1382,16 +1396,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                     )}
                   </div>
                   <div>
-                    <div className="font-medium text-[14px] text-[var(--text-primary)] flex items-center gap-2 flex-wrap">
+                    <div className="font-semibold text-[14px] text-[var(--text-primary)] flex items-center gap-2 flex-wrap">
                       <span>Online Updates &amp; Version Status</span>
                       {updateCheckResult?.has_update ? (
-                        <span className="text-[10px] font-mono text-[var(--accent)] px-2 py-0.5 rounded-[4px] bg-[var(--accent-subtle)] border border-[var(--accent-border)] font-semibold">
+                        <Badge variant="accent" size="sm" className="font-mono">
                           {updateCheckResult.latest_version} Available
-                        </span>
+                        </Badge>
                       ) : updateCheckResult ? (
-                        <span className="text-[10px] font-mono text-[var(--success)] px-2 py-0.5 rounded-[4px] bg-[var(--success-bg)] border border-[var(--success-border)] font-semibold">
+                        <Badge variant="success" size="sm" className="font-mono">
                           Up to Date
-                        </span>
+                        </Badge>
                       ) : null}
                     </div>
                     <p className="text-[12px] text-[var(--text-secondary)] mt-0.5">
@@ -1399,7 +1413,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                         ? `A new version (${updateCheckResult.latest_version}) is ready with new features and optimizations.`
                         : updateCheckResult
                         ? `You are on the latest version of Forge Wisper (v${updateCheckResult.current_version}).`
-                        : `Current version: v0.1.4. Automatic update checks run smoothly in the background.`}
+                        : `Current version: v0.1.5. Automatic update checks run smoothly in the background.`}
                     </p>
                   </div>
                 </div>
@@ -1449,11 +1463,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                   />
                 </div>
                 <div>
-                  <div className="font-medium text-[14px] text-[var(--text-primary)] flex items-center gap-2">
+                  <div className="font-semibold text-[14px] text-[var(--text-primary)] flex items-center gap-2">
                     AI NetworkX Community
-                    <span className="text-[10px] font-mono text-[var(--accent)] px-2 py-0.5 rounded-[4px] bg-[var(--accent-subtle)] border border-[var(--accent-border)] font-semibold">
-                      Official
-                    </span>
+                    <Badge variant="accent" size="sm" className="font-mono">Official</Badge>
                   </div>
                   <p className="text-[12px] text-[var(--text-secondary)] mt-0.5">
                     Connect with creators, share voice workflows, request features, and get support.
@@ -1473,7 +1485,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
             </div>
 
             <div className="pt-2 flex flex-col sm:flex-row items-center justify-between text-[12px] text-[var(--text-muted)] gap-2 border-t border-[var(--border-subtle)]">
-              <span>Crafted for high-speed voice workflows & clean code dictation.</span>
+              <span>Crafted for high-speed voice workflows &amp; clean code dictation.</span>
               <div className="flex items-center gap-3 flex-wrap">
                 <button
                   type="button"
@@ -1486,7 +1498,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
                 </button>
               </div>
             </div>
-          </div>
+          </Card>
         </div>
       )}
 
@@ -1501,4 +1513,3 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate: _onNavig
     </div>
   );
 };
-

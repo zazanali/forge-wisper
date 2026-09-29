@@ -6,40 +6,62 @@
     <title>Forge Wisper</title>
     <link rel="icon" type="image/svg+xml" href="/forge-wisper-logo.svg" />
 
-    <!-- Instant Zero-Delay Clean Paint on startup with System Theme support -->
+    <!-- Instant Zero-Delay Clean Paint on startup with System & Saved Theme support -->
+    <script>
+      (function() {
+        try {
+          if (window.location.hash.includes('recorder') || window.location.search.includes('recorder')) {
+            document.documentElement.classList.add('recorder-window');
+            return;
+          }
+          var savedTheme = localStorage.getItem('forge_theme') || localStorage.getItem('forge_theme_pref') || 'dark';
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var effectiveTheme = savedTheme === 'system' ? (prefersDark ? 'dark' : 'light') : savedTheme;
+          document.documentElement.setAttribute('data-theme', effectiveTheme);
+          if (effectiveTheme === 'light') {
+            document.documentElement.style.backgroundColor = '#F7F9F8';
+            document.documentElement.style.color = '#17201F';
+          } else {
+            document.documentElement.style.backgroundColor = '#0C1112';
+            document.documentElement.style.color = '#EEF2F1';
+          }
+        } catch (_) {}
+      })();
+    </script>
     <style>
+      :root {
+        color-scheme: dark;
+      }
       html, body, #root {
-        background-color: #F7F9F8;
-        color: #17201F;
+        background-color: #0C1112;
+        color: #EEF2F1;
         margin: 0;
         padding: 0;
         width: 100%;
         height: 100%;
         overflow: hidden;
       }
-      [data-theme="dark"] html,
-      [data-theme="dark"] body,
-      [data-theme="dark"] #root {
+      html[data-theme="light"],
+      html[data-theme="light"] body,
+      html[data-theme="light"] #root {
+        background-color: #F7F9F8 !important;
+        color: #17201F !important;
+      }
+      html[data-theme="dark"],
+      html[data-theme="dark"] body,
+      html[data-theme="dark"] #root {
         background-color: #0C1112 !important;
         color: #EEF2F1 !important;
-      }
-      @media (prefers-color-scheme: dark) {
-        :root:not([data-theme="light"]) html,
-        :root:not([data-theme="light"]) body,
-        :root:not([data-theme="light"]) #root,
-        [data-theme="system"] html,
-        [data-theme="system"] body,
-        [data-theme="system"] #root {
-          background-color: #0C1112 !important;
-          color: #EEF2F1 !important;
-        }
       }
       html.recorder-window,
       body.recorder-window,
       body.recorder-window #root,
-      [data-theme="dark"] html.recorder-window,
-      [data-theme="dark"] body.recorder-window,
-      [data-theme="dark"] body.recorder-window #root {
+      html[data-theme="dark"].recorder-window,
+      html[data-theme="dark"] body.recorder-window,
+      html[data-theme="dark"] body.recorder-window #root,
+      html[data-theme="light"].recorder-window,
+      html[data-theme="light"] body.recorder-window,
+      html[data-theme="light"] body.recorder-window #root {
         background-color: transparent !important;
         background: transparent !important;
       }

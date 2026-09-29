@@ -14,7 +14,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.4"
+version = "0.1.5"
 edition = "2021"
 authors = ["Zazan Ali"]
 license = "MIT"
@@ -40,3 +40,8 @@ chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.8", features = ["v4", "serde"] }
 regex = "1.10"
 lazy_static = "1.4"
+sha2 = "0.10"
+hex = "0.4"
+flate2 = "1.0"
+tar = "0.4"
+

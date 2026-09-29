@@ -16,3 +16,9 @@ tracing = { workspace = true }
 reqwest = { workspace = true }
 directories = { workspace = true }
 hound = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+flate2 = { workspace = true }
+tar = { workspace = true }
+transcribe-rs = { version = "0.2.9", default-features = false, features = ["parakeet"] }
+

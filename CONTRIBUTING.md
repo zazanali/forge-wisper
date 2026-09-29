@@ -16,9 +16,9 @@ Thank you for your interest in contributing to **Forge Wisper**! We welcome cont
 
 ## 🏛️ Codebase Architecture
 
-Forge Wisper is structured as a **Cargo Workspace & pnpm Monorepo**:
+Forge Wisper is structured as a **Cargo Workspace & Monorepo**:
 
-- **`apps/desktop/`**: Desktop GUI built with **Tauri v2**, **React 19**, **TypeScript**, and **Tailwind CSS**.
+- **`apps/desktop/`**: Desktop GUI built with **Tauri v2**, **React 18.3**, **TypeScript**, and **Tailwind CSS**.
 - **`apps/desktop/src-tauri/`**: Tauri Rust backend, window management, state persistence, and global hotkey handling.
 - **`crates/`**: Modular, isolated, and testable Rust crates:
   - `crates/audio`: Audio capture and RMS volume level streaming (`cpal`, `hound`).
@@ -30,14 +30,14 @@ Forge Wisper is structured as a **Cargo Workspace & pnpm Monorepo**:
   - `crates/verification`: Entity safety verification engine comparing raw transcripts with cleaned output.
 - **`providers/`**: Speech recognition engine implementations:
   - `providers/groq`: Fast cloud transcription using Groq LPUs (`whisper-large-v3-turbo`).
-  - `providers/local-whisper`: Offline on-device transcription with `whisper-rs` (whisper.cpp).
+  - `providers/local-whisper`: Offline on-device transcription with `whisper-rs` (whisper.cpp) and `transcribe-rs` (NVIDIA FastConformer Parakeet ONNX).
 
 ---
 
 ## 🛠️ Development Setup
 
 ### 1. Prerequisites
-- **Node.js** 18+ and **pnpm** 9+ (`npm install -g pnpm`)
+- **Node.js** 18+ and **npm** / **pnpm**
 - **Rust** 1.78+ (via [rustup](https://rustup.rs/))
 - **Tauri v2 CLI**: `cargo install tauri-cli --version "^2.0.0"`
 - **Windows C++ Build Tools** (MSVC) on Windows, or standard build essentials on Linux/macOS.
@@ -49,13 +49,13 @@ git clone https://github.com/zazanali/forge-wisper.git
 cd forge-wisper
 
 # Install frontend dependencies
-pnpm install
+npm install # or pnpm install
 
 # Run tests to ensure everything passes
 cargo test --workspace
 
 # Start desktop app in development mode
-pnpm tauri:dev
+npm run tauri:dev # or pnpm tauri:dev
 ```
 
 ---

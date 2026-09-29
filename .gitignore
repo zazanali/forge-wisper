@@ -106,6 +106,10 @@ desktop.ini
 *PRD*
 *.PRD.md
 *.prd.md
+IMPLEMENTATION_PLAN.md
+implementation.md
+*implementation*.md
+*IMPLEMENTATION*.md
 
 # --- Stitch & Agent Tooling ---
 .stitch/

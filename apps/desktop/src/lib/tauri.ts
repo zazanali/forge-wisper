@@ -3,11 +3,15 @@ import { listen } from "@tauri-apps/api/event";
 import type {
   AppSettings,
   AudioDeviceInfo,
+  BackendDiagnostics,
   HardwareRecommendation,
+  HistoryPage,
   HistoryRecord,
+  HistoryStats,
   LocalModelInfo,
   ProcessingState,
   FormattingMode,
+  SettingsPatch,
   UpdateInfo,
   UpdateDownloadProgress,
 } from "../types";
@@ -22,6 +26,8 @@ export const api = {
   getSettings: () => invoke<AppSettings>("get_settings"),
   updateSettings: (settings: AppSettings) =>
     invoke<void>("update_settings", { settings }),
+  patchSettings: (patch: SettingsPatch) =>
+    invoke<AppSettings>("patch_settings", { patch }),
 
   getAudioDevices: () => invoke<AudioDeviceInfo[]>("get_audio_devices"),
 
@@ -34,6 +40,10 @@ export const api = {
 
   listHistory: (limit = 50, search?: string) =>
     invoke<HistoryRecord[]>("list_history", { limit, search }),
+  getHistoryPage: (limit = 20, offset = 0, search?: string) =>
+    invoke<HistoryPage>("get_history_page", { limit, offset, search }),
+  getHistoryStats: (since?: string) =>
+    invoke<HistoryStats>("get_history_stats", { since }),
   deleteHistoryItem: (id: string) =>
     invoke<boolean>("delete_history_item", { id }),
   clearHistory: () => invoke<void>("clear_history"),
@@ -59,6 +69,8 @@ export const api = {
     invoke<boolean>("delete_model", { modelId }),
   getHardwareRecommendation: () =>
     invoke<HardwareRecommendation>("get_hardware_recommendation"),
+  getBackendStatus: () =>
+    invoke<BackendDiagnostics>("get_backend_status"),
   openUrl: (url: string) => invoke<void>("open_url", { url }),
   getAutostartStatus: () => invoke<boolean>("get_autostart_status"),
   setAutostart: (enable: boolean) =>

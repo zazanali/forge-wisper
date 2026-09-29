@@ -1,15 +1,18 @@
 {
   "name": "forge-wisper",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "description": "Open-Source AI Voice-to-Text and Smart Writing Desktop Application",
   "scripts": {
-    "dev": "pnpm --filter @forge-wisper/desktop dev",
-    "build": "pnpm --filter @forge-wisper/desktop build",
-    "tauri": "pnpm --filter @forge-wisper/desktop tauri",
-    "tauri:dev": "pnpm --filter @forge-wisper/desktop tauri dev",
-    "tauri:build": "pnpm --filter @forge-wisper/desktop tauri build",
+    "dev": "node scripts/dev.mjs dev",
+    "build": "npm --prefix apps/desktop run build",
+    "tauri": "node scripts/dev.mjs",
+    "tauri:dev": "node scripts/dev.mjs dev",
+    "tauri:dev:win": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows-dev.ps1 dev",
+    "tauri:build": "node scripts/dev.mjs build",
     "build:macos": "cd apps/macOS && sh build.sh",
+    "clean:windows-builds": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/clean-windows-builds.ps1",
+    "clean": "node scripts/clean-builds.mjs",
     "test": "cargo test --workspace"
   },
   "keywords": [

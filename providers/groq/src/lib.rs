@@ -100,6 +100,8 @@ impl TranscriptionProvider for GroqTranscriptionProvider {
                 "whisper-large-v3".to_string(),
             ],
             requires_api_key: true,
+            supported_families: vec![forge_transcription::ModelFamily::Whisper],
+            supported_backends: vec![],
         }
     }
 
@@ -178,7 +180,10 @@ impl TranscriptionProvider for GroqTranscriptionProvider {
             .await
             .map_err(|e| ProviderError::InternalError(e.to_string()))?;
 
-        println!("[Forge Groq] Received transcription from Groq: {:?}", groq_res.text);
+        println!(
+            "[Forge Groq] Received transcription from Groq ({} characters).",
+            groq_res.text.len()
+        );
 
         let effective_lang = groq_res
             .language
@@ -192,6 +197,8 @@ impl TranscriptionProvider for GroqTranscriptionProvider {
             model,
             duration_ms: audio.duration_ms,
             confidence: Some(0.98),
+            family: Some(forge_transcription::ModelFamily::Whisper),
+            backend: None,
         })
     }
 }

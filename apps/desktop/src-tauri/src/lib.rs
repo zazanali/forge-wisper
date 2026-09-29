@@ -172,12 +172,15 @@ pub fn run() {
             cancel_recording,
             get_settings,
             update_settings,
+            patch_settings,
             get_audio_devices,
             get_groq_api_key_status,
             set_groq_api_key,
             delete_groq_api_key,
             test_groq_connection,
             list_history,
+            get_history_page,
+            get_history_stats,
             delete_history_item,
             clear_history,
             reprocess_history_item,
@@ -186,6 +189,7 @@ pub fn run() {
             get_active_model_downloads,
             delete_model,
             get_hardware_recommendation,
+            get_backend_status,
             open_url,
             get_autostart_status,
             set_autostart_status,
@@ -200,7 +204,10 @@ pub fn run() {
 pub fn set_autostart(_enable: bool) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        use std::process::Command;
+        use std::process::{Command, Stdio};
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+
         if _enable {
             if let Ok(exe_path) = std::env::current_exe() {
                 let exe_str = exe_path.to_string_lossy().to_string();
@@ -216,6 +223,9 @@ pub fn set_autostart(_enable: bool) -> Result<(), String> {
                         &format!("\"{}\" --autostart", exe_str),
                         "/f",
                     ])
+                    .creation_flags(CREATE_NO_WINDOW)
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
                     .status()
                     .map_err(|e| e.to_string())?;
 
@@ -232,6 +242,9 @@ pub fn set_autostart(_enable: bool) -> Result<(), String> {
                     "ForgeWisper",
                     "/f",
                 ])
+                .creation_flags(CREATE_NO_WINDOW)
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
                 .status();
         }
     }
@@ -241,7 +254,10 @@ pub fn set_autostart(_enable: bool) -> Result<(), String> {
 pub fn check_is_autostart_enabled() -> bool {
     #[cfg(target_os = "windows")]
     {
-        use std::process::Command;
+        use std::process::{Command, Stdio};
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+
         if let Ok(output) = Command::new("reg")
             .args([
                 "query",
@@ -249,6 +265,9 @@ pub fn check_is_autostart_enabled() -> bool {
                 "/v",
                 "ForgeWisper",
             ])
+            .creation_flags(CREATE_NO_WINDOW)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
             .output()
         {
             return output.status.success();
@@ -404,7 +423,7 @@ pub fn register_global_hotkey<R: tauri::Runtime>(
         }
     }
 
-    println!("[Forge Shortcut] Global hotkey configured to '{}' (Universal Native OS Listener Active)", clean);
+    tracing::info!("[Forge Shortcut] Global hotkey configured to '{}' (Universal Native OS Listener Active)", clean);
     Ok(clean.to_string())
 }
 

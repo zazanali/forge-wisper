@@ -593,6 +593,7 @@ mod tests {
             model: "whisper-large-v3-turbo".to_string(),
             duration_ms: 3000,
             confidence: Some(0.98),
+            ..Default::default()
         };
 
         let options = CleanupOptions::default();
@@ -611,6 +612,7 @@ mod tests {
             model: "whisper-large-v3-turbo".to_string(),
             duration_ms: 1000,
             confidence: Some(0.98),
+            ..Default::default()
         };
 
         let options = CleanupOptions::default();
@@ -625,6 +627,7 @@ mod tests {
             model: "whisper-large-v3-turbo".to_string(),
             duration_ms: 1000,
             confidence: Some(0.98),
+            ..Default::default()
         };
         let cleaned_valid = RuleBasedCleaner::clean(&transcript_valid, &options).unwrap();
         assert_eq!(cleaned_valid.cleaned_text, "Thank you.");
@@ -640,6 +643,7 @@ mod tests {
             model: "whisper-large-v3-turbo".to_string(),
             duration_ms: 2000,
             confidence: Some(1.0),
+            ..Default::default()
         };
         let options = CleanupOptions {
             mode: FormattingMode::Structured,
@@ -692,6 +696,7 @@ mod tests {
             model: "whisper-large-v3-turbo".to_string(),
             duration_ms: 1000,
             confidence: Some(1.0),
+            ..Default::default()
         };
         let options = CleanupOptions {
             mode: FormattingMode::Smart,
@@ -745,6 +750,7 @@ mod tests {
             model: "whisper-large-v3-turbo".to_string(),
             duration_ms: 2500,
             confidence: Some(0.99),
+            ..Default::default()
         };
         let options = CleanupOptions::default();
         let cleaned = RuleBasedCleaner::clean(&transcript, &options).unwrap();

@@ -2,8 +2,6 @@ use directories::ProjectDirs;
 use keyring::Entry;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
-use std::fs::{create_dir_all, File};
-use std::io::Read;
 use std::path::PathBuf;
 use std::sync::RwLock;
 use thiserror::Error;
@@ -25,74 +23,64 @@ pub enum SecurityError {
 
 fn get_vault_path() -> Option<PathBuf> {
     ProjectDirs::from("com", "forge", "ForgeWisper").map(|proj| {
-        let config_dir = proj.config_dir();
-        let _ = create_dir_all(config_dir);
-        config_dir.join(".vault")
+        proj.config_dir().join(".vault")
     })
 }
 
-fn read_from_vault(key: &str) -> Option<String> {
+/// One-time migration helper: if a legacy plaintext vault file exists from older versions,
+/// read the secret, import it into the OS keyring, and immediately wipe the file from disk.
+fn migrate_and_wipe_legacy_vault(key: &str) -> Option<String> {
     let path = get_vault_path()?;
     if !path.exists() {
         return None;
     }
-    let mut file = File::open(path).ok()?;
-    let mut contents = String::new();
-    file.read_to_string(&mut contents).ok()?;
+
+    let contents = std::fs::read_to_string(&path).ok()?;
+    let mut found_secret = None;
+    let mut remaining = Vec::new();
 
     for line in contents.lines() {
         if let Some((k, v)) = line.split_once('=') {
-            if k.trim() == key {
-                let trimmed = v.trim();
-                if !trimmed.is_empty() {
-                    return Some(trimmed.to_string());
-                }
+            let trimmed_k = k.trim();
+            let trimmed_v = v.trim();
+            if trimmed_k == key && !trimmed_v.is_empty() {
+                found_secret = Some(trimmed_v.to_string());
+            } else if !trimmed_k.is_empty() {
+                remaining.push(format!("{}={}", trimmed_k, trimmed_v));
             }
         }
     }
-    None
+
+    // If no more keys remain in the legacy vault, remove the file entirely
+    if remaining.is_empty() {
+        let _ = std::fs::remove_file(&path);
+    } else {
+        let _ = std::fs::write(&path, remaining.join("\n"));
+    }
+
+    found_secret
 }
 
-fn write_to_vault(key: &str, secret: &str) {
-    let Some(path) = get_vault_path() else { return; };
-    let mut map = HashMap::new();
-
-    if path.exists() {
+fn delete_legacy_vault(key: &str) {
+    if let Some(path) = get_vault_path() {
+        if !path.exists() {
+            return;
+        }
         if let Ok(contents) = std::fs::read_to_string(&path) {
+            let mut remaining = Vec::new();
             for line in contents.lines() {
-                if let Some((k, v)) = line.split_once('=') {
-                    map.insert(k.trim().to_string(), v.trim().to_string());
+                if let Some((k, _)) = line.split_once('=') {
+                    if k.trim() != key {
+                        remaining.push(line.to_string());
+                    }
                 }
             }
-        }
-    }
-
-    map.insert(key.to_string(), secret.to_string());
-
-    let mut out = String::new();
-    for (k, v) in &map {
-        out.push_str(&format!("{}={}\n", k, v));
-    }
-
-    let _ = std::fs::write(path, out);
-}
-
-fn delete_from_vault(key: &str) {
-    let Some(path) = get_vault_path() else { return; };
-    if !path.exists() {
-        return;
-    }
-    if let Ok(contents) = std::fs::read_to_string(&path) {
-        let mut out = String::new();
-        for line in contents.lines() {
-            if let Some((k, _)) = line.split_once('=') {
-                if k.trim() != key {
-                    out.push_str(line);
-                    out.push('\n');
-                }
+            if remaining.is_empty() {
+                let _ = std::fs::remove_file(&path);
+            } else {
+                let _ = std::fs::write(&path, remaining.join("\n"));
             }
         }
-        let _ = std::fs::write(path, out);
     }
 }
 
@@ -105,13 +93,13 @@ impl SecretStore {
             cache.insert(key.to_string(), secret.to_string());
         }
 
-        // 2. Persist to local vault file for instant restart retrieval (<0.5ms)
-        write_to_vault(key, secret);
-
-        // 3. Persist to OS Keyring
+        // 2. Persist securely to OS Keyring (Windows Credential Manager / macOS Keychain)
         if let Ok(entry) = Entry::new(SERVICE_NAME, key) {
             let _ = entry.set_password(secret);
         }
+
+        // 3. Ensure no plaintext legacy vault remains on disk
+        delete_legacy_vault(key);
 
         Ok(())
     }
@@ -149,43 +137,51 @@ impl SecretStore {
             }
         }
 
-        // 3. Check fast local vault file (< 1ms)
-        if let Some(val) = read_from_vault(key) {
-            if !val.trim().is_empty() {
-                if let Ok(mut cache) = SECRET_CACHE.write() {
-                    cache.insert(key.to_string(), val.clone());
-                }
-                return Ok(val);
-            }
-        }
-
-        // 4. Fall back to OS Keyring (Windows Credential Manager / macOS Keychain)
+        // 3. Check OS Keyring (Windows Credential Manager / macOS Keychain)
         let entry = Entry::new(SERVICE_NAME, key)
             .map_err(|e| SecurityError::KeyringError(e.to_string()))?;
         match entry.get_password() {
             Ok(secret) => {
-                // Populate memory cache and local vault for subsequent calls
                 if let Ok(mut cache) = SECRET_CACHE.write() {
                     cache.insert(key.to_string(), secret.clone());
                 }
-                write_to_vault(key, &secret);
                 Ok(secret)
             }
-            Err(keyring::Error::NoEntry) => Err(SecurityError::NotFound(key.to_string())),
-            Err(e) => Err(SecurityError::KeyringError(e.to_string())),
+            Err(keyring::Error::NoEntry) => {
+                // 4. One-time legacy migration check: if legacy .vault file was left on disk,
+                // migrate secret to OS Keyring and wipe the plaintext file from disk.
+                if let Some(migrated_secret) = migrate_and_wipe_legacy_vault(key) {
+                    let _ = entry.set_password(&migrated_secret);
+                    if let Ok(mut cache) = SECRET_CACHE.write() {
+                        cache.insert(key.to_string(), migrated_secret.clone());
+                    }
+                    return Ok(migrated_secret);
+                }
+                Err(SecurityError::NotFound(key.to_string()))
+            }
+            Err(e) => {
+                // If keyring is unavailable, check legacy vault fallback
+                if let Some(migrated_secret) = migrate_and_wipe_legacy_vault(key) {
+                    if let Ok(mut cache) = SECRET_CACHE.write() {
+                        cache.insert(key.to_string(), migrated_secret.clone());
+                    }
+                    return Ok(migrated_secret);
+                }
+                Err(SecurityError::KeyringError(e.to_string()))
+            }
         }
     }
 
     pub fn delete_secret(key: &str) -> Result<(), SecurityError> {
-        // 1. Remove from cache
+        // 1. Remove from in-memory cache
         if let Ok(mut cache) = SECRET_CACHE.write() {
             cache.remove(key);
         }
 
-        // 2. Remove from vault
-        delete_from_vault(key);
+        // 2. Remove legacy vault from disk if present
+        delete_legacy_vault(key);
 
-        // 3. Remove from Keyring
+        // 3. Remove from OS Keyring
         if let Ok(entry) = Entry::new(SERVICE_NAME, key) {
             let _ = entry.delete_password();
         }

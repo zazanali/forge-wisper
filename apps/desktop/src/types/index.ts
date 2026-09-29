@@ -33,6 +33,29 @@ export interface AppSettings {
   typing_delay_ms?: number;
 }
 
+export type SettingsPatch = Partial<AppSettings>;
+
+export interface VulkanDevice {
+  device_index: number;
+  device_name: string;
+  device_type: string;
+  vendor_id: number;
+  vendor_name: string;
+  driver_version: string;
+  dedicated_vram_mb: number;
+  is_discrete: boolean;
+}
+
+export interface BackendDiagnostics {
+  is_vulkan_available: boolean;
+  active_backend: string;
+  active_device_name?: string | null;
+  active_device_index?: number | null;
+  dedicated_vram_mb?: number | null;
+  available_devices: VulkanDevice[];
+  fallback_reason?: string | null;
+}
+
 export interface UpdateInfo {
   current_version: string;
   latest_version: string;
@@ -74,6 +97,23 @@ export interface HistoryRecord {
   verification_status: string;
 }
 
+export interface HistoryStats {
+  total_records: number;
+  total_words: number;
+  total_duration_ms: number;
+}
+
+export interface HistoryPage {
+  records: HistoryRecord[];
+  total_count: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
+}
+
+export type ModelFamily = "whisper" | "parakeet";
+export type ModelFormat = "ggml" | "onnx_archive";
+
 export interface LocalModelInfo {
   id: string;
   name: string;
@@ -83,12 +123,19 @@ export interface LocalModelInfo {
   download_url: string;
   is_installed: boolean;
   is_default: boolean;
+  family?: ModelFamily;
+  format?: ModelFormat;
+  tier_tag?: string;
+  sha256?: string;
+  expected_bytes?: number;
 }
 
 export interface HardwareRecommendation {
   logical_cores: number;
   estimated_ram_gb: number;
   recommended_model_id: string;
+  recommended_model_name: string;
+  recommended_family: ModelFamily;
   reason: string;
 }
 

@@ -261,6 +261,7 @@ pub fn launch_installer_and_exit(installer_path: &str) -> Result<(), String> {
         use std::os::windows::process::CommandExt;
         const DETACHED_PROCESS: u32 = 0x00000008;
         const CREATE_BREAKAWAY_FROM_JOB: u32 = 0x01000000;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
 
         let current_exe = std::env::current_exe()
             .unwrap_or_else(|_| PathBuf::from("forge-desktop-app.exe"));
@@ -275,7 +276,9 @@ pub fn launch_installer_and_exit(installer_path: &str) -> Result<(), String> {
 
         let _ = std::process::Command::new("powershell")
             .args(["-NoProfile", "-WindowStyle", "Hidden", "-Command", &ps_cmd])
-            .creation_flags(DETACHED_PROCESS | CREATE_BREAKAWAY_FROM_JOB)
+            .creation_flags(DETACHED_PROCESS | CREATE_BREAKAWAY_FROM_JOB | CREATE_NO_WINDOW)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
             .spawn();
 
         std::thread::sleep(Duration::from_millis(300));

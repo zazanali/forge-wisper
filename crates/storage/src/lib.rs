@@ -21,7 +21,7 @@ impl Default for RetentionPolicy {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct HistoryRecord {
     pub id: String,
     pub created_at: String,
@@ -32,6 +32,22 @@ pub struct HistoryRecord {
     pub final_text: String,
     pub duration_ms: u64,
     pub verification_status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub struct HistoryStats {
+    pub total_records: u64,
+    pub total_words: u64,
+    pub total_duration_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct HistoryPage {
+    pub records: Vec<HistoryRecord>,
+    pub total_count: u64,
+    pub limit: usize,
+    pub offset: usize,
+    pub has_more: bool,
 }
 
 #[derive(Debug, Error)]
@@ -198,6 +214,176 @@ impl StorageEngine {
         Ok(results)
     }
 
+    /// Retrieve a single history record by ID without full table scan
+    pub fn get_record(&self, id: &str) -> Result<Option<HistoryRecord>, StorageError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, created_at, app_name, provider_id, model_name, raw_text, final_text, duration_ms, verification_status
+             FROM dictation_history
+             WHERE id = ?1",
+        )?;
+
+        let mut rows = stmt.query(params![id])?;
+        if let Some(row) = rows.next()? {
+            Ok(Some(HistoryRecord {
+                id: row.get(0)?,
+                created_at: row.get(1)?,
+                app_name: row.get(2)?,
+                provider_id: row.get(3)?,
+                model_name: row.get(4)?,
+                raw_text: row.get(5)?,
+                final_text: row.get(6)?,
+                duration_ms: row.get(7)?,
+                verification_status: row.get(8)?,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Database-backed pagination query returning records, total count, and has_more
+    pub fn get_history_page(
+        &self,
+        limit: usize,
+        offset: usize,
+        search: Option<&str>,
+    ) -> Result<HistoryPage, StorageError> {
+        let conn = self.conn.lock().unwrap();
+        let limit_val = limit.max(1) as i64;
+        let offset_val = offset as i64;
+
+        let (total_count, records) = if let Some(query) = search {
+            let pattern = format!("%{}%", query);
+            let count: i64 = conn.query_row(
+                "SELECT COUNT(*) FROM dictation_history WHERE raw_text LIKE ?1 OR final_text LIKE ?1",
+                params![pattern],
+                |r| r.get(0),
+            )?;
+
+            let mut stmt = conn.prepare(
+                "SELECT id, created_at, app_name, provider_id, model_name, raw_text, final_text, duration_ms, verification_status
+                 FROM dictation_history
+                 WHERE raw_text LIKE ?1 OR final_text LIKE ?1
+                 ORDER BY created_at DESC
+                 LIMIT ?2 OFFSET ?3",
+            )?;
+
+            let rows = stmt.query_map(params![pattern, limit_val, offset_val], |row| {
+                Ok(HistoryRecord {
+                    id: row.get(0)?,
+                    created_at: row.get(1)?,
+                    app_name: row.get(2)?,
+                    provider_id: row.get(3)?,
+                    model_name: row.get(4)?,
+                    raw_text: row.get(5)?,
+                    final_text: row.get(6)?,
+                    duration_ms: row.get(7)?,
+                    verification_status: row.get(8)?,
+                })
+            })?;
+
+            let mut recs = Vec::new();
+            for r in rows {
+                recs.push(r?);
+            }
+            (count.max(0) as u64, recs)
+        } else {
+            let count: i64 = conn.query_row(
+                "SELECT COUNT(*) FROM dictation_history",
+                [],
+                |r| r.get(0),
+            )?;
+
+            let mut stmt = conn.prepare(
+                "SELECT id, created_at, app_name, provider_id, model_name, raw_text, final_text, duration_ms, verification_status
+                 FROM dictation_history
+                 ORDER BY created_at DESC
+                 LIMIT ?1 OFFSET ?2",
+            )?;
+
+            let rows = stmt.query_map(params![limit_val, offset_val], |row| {
+                Ok(HistoryRecord {
+                    id: row.get(0)?,
+                    created_at: row.get(1)?,
+                    app_name: row.get(2)?,
+                    provider_id: row.get(3)?,
+                    model_name: row.get(4)?,
+                    raw_text: row.get(5)?,
+                    final_text: row.get(6)?,
+                    duration_ms: row.get(7)?,
+                    verification_status: row.get(8)?,
+                })
+            })?;
+
+            let mut recs = Vec::new();
+            for r in rows {
+                recs.push(r?);
+            }
+            (count.max(0) as u64, recs)
+        };
+
+        let has_more = (offset + records.len()) < total_count as usize;
+
+        Ok(HistoryPage {
+            records,
+            total_count,
+            limit,
+            offset,
+            has_more,
+        })
+    }
+
+    /// Single aggregate query computing total records, total duration, and total words
+    /// without loading full history records into memory.
+    pub fn get_stats(&self, since: Option<&str>) -> Result<HistoryStats, StorageError> {
+        let conn = self.conn.lock().unwrap();
+
+        // Count words using SQL string length difference:
+        // LENGTH(TRIM(final_text)) - LENGTH(REPLACE(TRIM(final_text), ' ', '')) + 1
+        let query = if since.is_some() {
+            "SELECT 
+                COUNT(*),
+                COALESCE(SUM(duration_ms), 0),
+                COALESCE(SUM(CASE WHEN LENGTH(TRIM(final_text)) > 0 THEN (LENGTH(TRIM(final_text)) - LENGTH(REPLACE(TRIM(final_text), ' ', '')) + 1) ELSE 0 END), 0)
+             FROM dictation_history
+             WHERE created_at >= ?1"
+        } else {
+            "SELECT 
+                COUNT(*),
+                COALESCE(SUM(duration_ms), 0),
+                COALESCE(SUM(CASE WHEN LENGTH(TRIM(final_text)) > 0 THEN (LENGTH(TRIM(final_text)) - LENGTH(REPLACE(TRIM(final_text), ' ', '')) + 1) ELSE 0 END), 0)
+             FROM dictation_history"
+        };
+
+        if let Some(cutoff) = since {
+            let mut stmt = conn.prepare(query)?;
+            let stats = stmt.query_row(params![cutoff], |row| {
+                let total_records: i64 = row.get(0)?;
+                let total_duration_ms: i64 = row.get(1)?;
+                let total_words: i64 = row.get(2)?;
+                Ok(HistoryStats {
+                    total_records: total_records.max(0) as u64,
+                    total_duration_ms: total_duration_ms.max(0) as u64,
+                    total_words: total_words.max(0) as u64,
+                })
+            })?;
+            Ok(stats)
+        } else {
+            let mut stmt = conn.prepare(query)?;
+            let stats = stmt.query_row([], |row| {
+                let total_records: i64 = row.get(0)?;
+                let total_duration_ms: i64 = row.get(1)?;
+                let total_words: i64 = row.get(2)?;
+                Ok(HistoryStats {
+                    total_records: total_records.max(0) as u64,
+                    total_duration_ms: total_duration_ms.max(0) as u64,
+                    total_words: total_words.max(0) as u64,
+                })
+            })?;
+            Ok(stats)
+        }
+    }
+
     pub fn delete_record(&self, id: &str) -> Result<bool, StorageError> {
         let conn = self.conn.lock().unwrap();
         let affected = conn.execute("DELETE FROM dictation_history WHERE id = ?1", params![id])?;
@@ -263,5 +449,78 @@ mod tests {
 
         engine.delete_record(&record.id).unwrap();
         assert_eq!(engine.list_records(10, None).unwrap().len(), 0);
+    }
+
+    #[test]
+    fn test_pagination_and_aggregate_stats() {
+        let engine = StorageEngine::new_in_memory().unwrap();
+
+        // 1. Initial empty stats
+        let initial_stats = engine.get_stats(None).unwrap();
+        assert_eq!(initial_stats.total_records, 0);
+        assert_eq!(initial_stats.total_words, 0);
+        assert_eq!(initial_stats.total_duration_ms, 0);
+
+        // 2. Insert 5 records with known words and durations
+        for i in 1..=5 {
+            let record = HistoryRecord {
+                id: format!("rec-{}", i),
+                created_at: format!("2026-09-26T01:0{}:00Z", i),
+                app_name: Some("Terminal".to_string()),
+                provider_id: "local-whisper".to_string(),
+                model_name: "base".to_string(),
+                raw_text: format!("raw sentence number {}", i),
+                final_text: format!("Word one two three number {}", i), // 5 words
+                duration_ms: 1000 * i,
+                verification_status: "PASS".to_string(),
+            };
+            engine.insert_record(&record, RetentionPolicy::Forever).unwrap();
+        }
+
+        // 3. Test get_record
+        let single = engine.get_record("rec-3").unwrap();
+        assert!(single.is_some());
+        assert_eq!(single.unwrap().final_text, "Word one two three number 3");
+
+        let non_existent = engine.get_record("rec-999").unwrap();
+        assert!(non_existent.is_none());
+
+        // 4. Test aggregate get_stats
+        let stats = engine.get_stats(None).unwrap();
+        assert_eq!(stats.total_records, 5);
+        assert_eq!(stats.total_words, 30); // 5 records * 6 words ("Word one two three number X")
+        assert_eq!(stats.total_duration_ms, 1000 + 2000 + 3000 + 4000 + 5000); // 15,000 ms
+
+        // Filtered stats with since cutoff
+        let filtered_stats = engine.get_stats(Some("2026-09-26T01:04:00Z")).unwrap();
+        assert_eq!(filtered_stats.total_records, 2); // rec-4 and rec-5
+        assert_eq!(filtered_stats.total_words, 12); // 2 records * 6 words
+        assert_eq!(filtered_stats.total_duration_ms, 9000);
+
+        // 5. Test get_history_page pagination
+        let page1 = engine.get_history_page(2, 0, None).unwrap();
+        assert_eq!(page1.records.len(), 2);
+        assert_eq!(page1.total_count, 5);
+        assert_eq!(page1.offset, 0);
+        assert_eq!(page1.limit, 2);
+        assert!(page1.has_more);
+        assert_eq!(page1.records[0].id, "rec-5"); // ORDER BY created_at DESC
+
+        let page2 = engine.get_history_page(2, 2, None).unwrap();
+        assert_eq!(page2.records.len(), 2);
+        assert_eq!(page2.records[0].id, "rec-3");
+        assert!(page2.has_more);
+
+        let page3 = engine.get_history_page(2, 4, None).unwrap();
+        assert_eq!(page3.records.len(), 1);
+        assert_eq!(page3.records[0].id, "rec-1");
+        assert!(!page3.has_more); // Last page
+
+        // Search pagination
+        let search_page = engine.get_history_page(10, 0, Some("number 2")).unwrap();
+        assert_eq!(search_page.records.len(), 1);
+        assert_eq!(search_page.total_count, 1);
+        assert_eq!(search_page.records[0].id, "rec-2");
+        assert!(!search_page.has_more);
     }
 }

@@ -8,8 +8,6 @@ import { FloatingRecorder } from "./views/FloatingRecorder";
 import { ForgeLogo } from "./components/ForgeLogo";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { UpdateModal } from "./components/UpdateModal";
-import { api } from "./lib/tauri";
-import type { AppSettings, UpdateInfo } from "./types";
 import {
   LayoutDashboard,
   History as HistoryIcon,
@@ -26,6 +24,8 @@ import {
   X,
 } from "lucide-react";
 
+import { appStore, useAppStore, resolveEffectiveTheme, applyThemeToDom } from "./state/appStore";
+
 type Tab = "dashboard" | "history" | "models" | "dictionary" | "settings";
 
 export const App: React.FC = () => {
@@ -38,84 +38,35 @@ export const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [currentTab, setCurrentTab] = useState<Tab>("dashboard");
-  const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [availableUpdate, setAvailableUpdate] = useState<UpdateInfo | null>(null);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [isUpdateBannerDismissed, setIsUpdateBannerDismissed] = useState(false);
 
-  const resolveEffectiveTheme = (themePreference?: string) => {
-    if (themePreference === "system") {
-      return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light";
-    }
-    return themePreference || "light";
-  };
-
-  const applyTheme = (themePreference?: string) => {
-    const effective = resolveEffectiveTheme(themePreference);
-    document.documentElement.setAttribute("data-theme", effective);
-  };
+  const { settings, toastMessage, availableUpdate } = useAppStore();
 
   useEffect(() => {
     if (isRecorderWindow) {
       return;
     }
-
-    api.getSettings().then((s) => {
-      setSettings(s);
-      applyTheme(s.theme);
-      if (s.auto_check_updates !== false) {
-        api.checkForUpdates(false).then((info) => {
-          if (info.has_update) {
-            setAvailableUpdate(info);
-          }
-        }).catch(() => {});
-      }
-    }).catch(console.error);
-
-    const unlistenToast = api.onToast((msg) => {
-      setToastMessage(msg);
-      setTimeout(() => setToastMessage(null), 3000);
-    });
-
-    const unlistenUpdate = api.onUpdateAvailable((info) => {
-      if (info.has_update) {
-        setAvailableUpdate(info);
-      }
-    });
-
-    return () => {
-      unlistenToast.then((fn) => fn());
-      unlistenUpdate.then((fn) => fn());
-    };
-  }, []);
+    appStore.init();
+  }, [isRecorderWindow]);
 
   // Real-time system theme change listener for Windows/OS theme toggles
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const handleSystemThemeChange = () => {
       if (settings?.theme === "system") {
-        applyTheme("system");
+        applyThemeToDom("system");
       }
     };
     mediaQuery.addEventListener("change", handleSystemThemeChange);
     return () => mediaQuery.removeEventListener("change", handleSystemThemeChange);
   }, [settings?.theme]);
 
-  const toggleTheme = async () => {
+  const toggleTheme = () => {
     if (!settings) return;
     const currentEffective = resolveEffectiveTheme(settings.theme);
     const newTheme = currentEffective === "light" ? "dark" : "light";
-    const updated = { ...settings, theme: newTheme as "dark" | "light" | "system" };
-    setSettings(updated);
-    applyTheme(newTheme);
-    try {
-      await api.updateSettings(updated);
-    } catch (e) {
-      console.error(e);
-    }
+    appStore.patchSettings({ theme: newTheme });
   };
 
   if (isRecorderWindow) {
@@ -424,7 +375,7 @@ export const App: React.FC = () => {
 
         <main className="flex-1 overflow-y-auto overflow-x-hidden h-full bg-[var(--bg-app)]">
           {/* Responsive Page Viewport Container */}
-          <div className="w-full max-w-6xl mx-auto px-3 sm:px-6 md:px-8 py-3.5 sm:py-6 md:py-8 transition-all duration-200">
+          <div className="w-full max-w-6xl mx-auto px-3 sm:px-5 md:px-6 lg:px-8 py-3.5 sm:py-5 md:py-6 transition-all duration-200">
             {currentTab === "dashboard" && <Dashboard onNavigate={setCurrentTab} />}
             {currentTab === "history" && <HistoryView />}
             {currentTab === "models" && <ModelManagerView />}

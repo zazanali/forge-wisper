@@ -52,15 +52,26 @@ Get the latest official release for your operating system from the **[GitHub Rel
     ⚡ Real-Time Cursor Injection (Direct keystroke paste into active window)
 ```
 
----
-
 ## ✨ Key Features
 
+- **⚡ Dual Local & Cloud AI Engines**:
+  - **Groq Cloud LPUs**: Sub-second cloud transcription with `whisper-large-v3-turbo` for instantaneous speech processing.
+  - **100% Offline Local Whisper**: On-device Whisper (`whisper.cpp` / GGUF) for total air-gapped privacy.
+  - **⚡ NVIDIA FastConformer / Parakeet ONNX**: High-speed, low-memory local speech recognition powered by `transcribe-rs` with INT8 quantization.
+- **🔍 Smart Hardware Detection & Compute Routing**:
+  - Proactive hardware scanner that inspects dedicated GPU VRAM, physical CPU cores, and compute capabilities.
+  - Automatically routes execution to **Vulkan GPU Compute** on machines with dedicated graphics ($\ge 512\text{ MB}$ VRAM) or **Multi-Threaded AVX2 CPU Mode** on laptops with integrated graphics.
+- **📥 Streaming Model Manager with SHA-256 Verification**:
+  - 1-click local model downloader connected directly to public Hugging Face repositories.
+  - Real-time download progress tracker with downloaded byte counters, progress bars, and cryptographic SHA-256 checksum verification.
+- **📱 Fluid Bento Dashboard & Responsive Layout**:
+  - Bento-style layout with live audio soundwaves, multi-segment LED VU level meters, real-time WPM calculation, and session analytics.
+  - Responsive multi-breakpoint design adapted for compact windows, split-screen workflows, laptops, and ultra-wide monitors.
 - **⚡ Real-Time Cursor Dictation**:
   - Transcribed text is typed directly into whatever text box, input field, or code editor you clicked on.
   - Zero intrusive preview popups blocking your screen — sleek minimal floating HUD only.
 - **⚡ Instant Settings Switching & Zero-Latency Setup**:
-  - Toggling transcription formatting modes, audio input devices, speech providers (Local Whisper / Groq Cloud), or languages now executes with **0ms visual delay** through optimistic UI state updates.
+  - Toggling transcription formatting modes, audio input devices, speech providers (Local Whisper / Groq Cloud), or languages executes with **0ms visual delay** through optimistic UI state updates.
   - Offloads disk file operations and utilizes smart in-memory state diffing to skip redundant Windows Registry (`reg.exe`) and Win32 hotkey re-registration hooks, eliminating 8–10s anti-virus scan pauses.
 - **🎙️ Live Microphone Hotplug Detection**:
   - The microphone selector dynamically probes and detects newly connected USB or Bluetooth audio devices on demand, eliminating the need to restart the application when switching headsets.
@@ -86,16 +97,10 @@ Get the latest official release for your operating system from the **[GitHub Rel
 - **🎙️ Band-Limited Anti-Aliased Audio Pipeline**:
   - High-precision audio decimation filter with sinc/Blackman windowing to resample high-definition microphone streams (48kHz/96kHz) down to Whisper's native 16kHz with zero aliasing artifacts.
   - Full CoreAudio NaN and Inf sample sanitization on macOS.
-- **⚡ Dual AI Engines (Groq Cloud & Local Whisper)**:
-  - **Groq Cloud LPUs**: Sub-second cloud transcription with `whisper-large-v3-turbo`.
-  - **100% Offline Local Whisper**: On-device Whisper (GGUF / whisper.cpp) for complete offline privacy.
 - **📊 Dynamic Accomplishment Metrics & SQLite History**:
   - Real-time analytics tracking Total Words Transcribed, Time Saved, Typing WPM, and Active Sessions based on raw recorded PCM duration.
   - Timeframe filters for **Today**, **This Week**, and **All Time** with persistent state.
   - Searchable local SQLite database with customizable retention policies (7 days, 30 days, or indefinite).
-- **📱 Fluid Device-Adaptive Responsive Layout**:
-  - Fully adaptive layouts supporting mobile, tablet, laptop, and multi-monitor desktop setups (`sm`, `md`, `lg`, `xl`).
-  - Slide-over collapsible drawer navigation for compact displays with backdrop blur and touch-friendly controls.
 - **🚀 Zero-Hang Startup**:
   - Instant background initialization on system startup via Windows Registry and macOS LaunchAgents with zero UI freeze.
 - **🔒 Enterprise-Grade Key Storage**:
@@ -205,18 +210,18 @@ forge-wisper/
 
 2. **Install frontend dependencies**:
    ```bash
-   pnpm install
+   npm install # or pnpm install
    ```
 
 3. **Run in Desktop Development Mode**:
    ```bash
-   pnpm tauri:dev
+   npm run tauri:dev # or pnpm tauri:dev
    ```
 
 4. **Build Production Installer / Packages**:
    ```bash
    # Windows (Generates .exe NSIS installer)
-   pnpm tauri:build
+   npm run tauri:build # or pnpm tauri:build
 
    # macOS (Sets up universal targets & generates .dmg / .app bundle)
    sh apps/macOS/setup.sh
@@ -292,6 +297,13 @@ Thank you to everyone who has helped build and improve **Forge Wisper**!
         <sub><b>Ihtisham Hussain</b></sub>
       </a><br />
       <sub>Native macOS Support & Packaging</sub>
+    </td>
+    <td align="center">
+      <a href="https://github.com/TechnicalExpo">
+        <img src="https://github.com/TechnicalExpo.png" width="70px;" alt="TechnicalExpo" style="border-radius: 50%;" /><br />
+        <sub><b>TechnicalExpo</b></sub>
+      </a><br />
+      <sub>Feature Contributions</sub>
     </td>
   </tr>
 </table>

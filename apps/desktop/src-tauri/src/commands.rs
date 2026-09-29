@@ -1,9 +1,11 @@
-use crate::state::{AppSettings, PipelineState, ProcessingState};
+use crate::state::{AppSettings, PipelineState, ProcessingState, SettingsPatch};
 use forge_audio::{list_input_devices, AudioDeviceInfo};
 use forge_cleanup::{CleanupOptions, FormattingMode, RuleBasedCleaner};
-use forge_provider_local_whisper::{HardwareDetector, HardwareRecommendation, LocalModelInfo};
+use forge_provider_local_whisper::{
+    BackendDiagnostics, HardwareDetector, HardwareRecommendation, LocalModelInfo,
+};
 use forge_security::SecretStore;
-use forge_storage::HistoryRecord;
+use forge_storage::{HistoryPage, HistoryRecord, HistoryStats};
 use forge_transcription::Transcript;
 use tauri::{AppHandle, Emitter, State};
 
@@ -83,6 +85,41 @@ pub fn update_settings(
 }
 
 #[tauri::command]
+pub fn patch_settings(
+    app: AppHandle,
+    patch: SettingsPatch,
+    state: State<'_, PipelineState>,
+) -> Result<AppSettings, String> {
+    let (settings, hotkey_changed, autostart_changed) = {
+        let mut s = state.settings.lock().unwrap();
+        let (hotkey_changed, autostart_changed) = s.apply_patch(patch);
+        (s.clone(), hotkey_changed, autostart_changed)
+    };
+
+    let settings_clone = settings.clone();
+    tauri::async_runtime::spawn(async move {
+        settings_clone.save();
+    });
+
+    if autostart_changed {
+        let launch = settings.launch_at_startup;
+        tauri::async_runtime::spawn(async move {
+            let _ = crate::set_autostart(launch);
+        });
+    }
+
+    if hotkey_changed {
+        let app_handle = app.clone();
+        let hotkey = settings.hotkey.clone();
+        tauri::async_runtime::spawn(async move {
+            let _ = crate::register_global_hotkey(&app_handle, &hotkey);
+        });
+    }
+
+    Ok(settings)
+}
+
+#[tauri::command]
 pub async fn get_audio_devices() -> Result<Vec<AudioDeviceInfo>, String> {
     tokio::task::spawn_blocking(|| list_input_devices().map_err(|e| e.to_string()))
         .await
@@ -143,6 +180,30 @@ pub fn list_history(
 }
 
 #[tauri::command]
+pub fn get_history_page(
+    limit: usize,
+    offset: usize,
+    search: Option<String>,
+    state: State<'_, PipelineState>,
+) -> Result<HistoryPage, String> {
+    state
+        .storage
+        .get_history_page(limit, offset, search.as_deref())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_history_stats(
+    since: Option<String>,
+    state: State<'_, PipelineState>,
+) -> Result<HistoryStats, String> {
+    state
+        .storage
+        .get_stats(since.as_deref())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub fn delete_history_item(
     id: String,
     state: State<'_, PipelineState>,
@@ -161,14 +222,10 @@ pub fn reprocess_history_item(
     mode: FormattingMode,
     state: State<'_, PipelineState>,
 ) -> Result<String, String> {
-    let records = state
+    let record = state
         .storage
-        .list_records(100, None)
-        .map_err(|e| e.to_string())?;
-
-    let record = records
-        .into_iter()
-        .find(|r| r.id == id)
+        .get_record(&id)
+        .map_err(|e| e.to_string())?
         .ok_or_else(|| "History record not found".to_string())?;
 
     let (dictionary, snippets, current_lang) = {
@@ -183,6 +240,7 @@ pub fn reprocess_history_item(
         model: record.model_name.clone(),
         duration_ms: record.duration_ms,
         confidence: Some(0.95),
+        ..Default::default()
     };
 
     let options = CleanupOptions {
@@ -256,11 +314,23 @@ pub fn get_hardware_recommendation() -> HardwareRecommendation {
 }
 
 #[tauri::command]
+pub fn get_backend_status(
+    state: State<'_, PipelineState>,
+) -> BackendDiagnostics {
+    state.local_provider.get_backend_status()
+}
+
+#[tauri::command]
 pub fn open_url(url: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
         std::process::Command::new("cmd")
             .args(["/C", "start", "", &url])
+            .creation_flags(CREATE_NO_WINDOW)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
             .spawn()
             .map_err(|e| e.to_string())?;
     }

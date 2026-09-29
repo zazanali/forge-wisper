@@ -130,10 +130,88 @@ impl AppSettings {
     pub fn save(&self) {
         if let Some(path) = Self::config_path() {
             if let Ok(json) = serde_json::to_string_pretty(self) {
-                let _ = std::fs::write(path, json);
+                let tmp_path = path.with_extension("json.tmp");
+                if std::fs::write(&tmp_path, json).is_ok() {
+                    let _ = std::fs::rename(&tmp_path, path);
+                }
             }
         }
     }
+
+    /// Applies a partial patch to settings, returning (hotkey_changed, autostart_changed).
+    pub fn apply_patch(&mut self, patch: SettingsPatch) -> (bool, bool) {
+        let mut hotkey_changed = false;
+        let mut autostart_changed = false;
+
+        if let Some(provider) = patch.provider {
+            self.provider = provider;
+        }
+        if let Some(model) = patch.model {
+            self.model = model;
+        }
+        if let Some(mic) = patch.microphone {
+            self.microphone = mic;
+        }
+        if let Some(language) = patch.language {
+            self.language = language;
+        }
+        if let Some(formatting_mode) = patch.formatting_mode {
+            self.formatting_mode = formatting_mode;
+        }
+        if let Some(hotkey) = patch.hotkey {
+            if self.hotkey != hotkey {
+                self.hotkey = hotkey;
+                hotkey_changed = true;
+            }
+        }
+        if let Some(is_toggle_mode) = patch.is_toggle_mode {
+            self.is_toggle_mode = is_toggle_mode;
+        }
+        if let Some(retention_policy) = patch.retention_policy {
+            self.retention_policy = retention_policy;
+        }
+        if let Some(dictionary) = patch.dictionary {
+            self.dictionary = dictionary;
+        }
+        if let Some(snippets) = patch.snippets {
+            self.snippets = snippets;
+        }
+        if let Some(theme) = patch.theme {
+            self.theme = theme;
+        }
+        if let Some(launch_at_startup) = patch.launch_at_startup {
+            if self.launch_at_startup != launch_at_startup {
+                self.launch_at_startup = launch_at_startup;
+                autostart_changed = true;
+            }
+        }
+        if let Some(output_mode) = patch.output_mode {
+            self.output_mode = output_mode;
+        }
+        if let Some(typing_delay_ms) = patch.typing_delay_ms {
+            self.typing_delay_ms = typing_delay_ms;
+        }
+
+        (hotkey_changed, autostart_changed)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SettingsPatch {
+    pub provider: Option<String>,
+    pub model: Option<String>,
+    pub microphone: Option<Option<String>>,
+    pub language: Option<String>,
+    pub formatting_mode: Option<FormattingMode>,
+    pub hotkey: Option<String>,
+    pub is_toggle_mode: Option<bool>,
+    pub retention_policy: Option<RetentionPolicy>,
+    pub dictionary: Option<HashMap<String, String>>,
+    pub snippets: Option<HashMap<String, String>>,
+    pub theme: Option<String>,
+    pub launch_at_startup: Option<bool>,
+    pub output_mode: Option<String>,
+    pub typing_delay_ms: Option<u64>,
 }
 
 pub struct PipelineState {
@@ -148,6 +226,7 @@ pub struct PipelineState {
     pub local_provider: Arc<LocalWhisperProvider>,
     pub last_recording_toggle: Arc<Mutex<Instant>>,
     pub typed_text_buffer: Arc<Mutex<String>>,
+    pub recorder_positioned: AtomicBool,
 }
 
 impl PipelineState {
@@ -174,6 +253,7 @@ impl PipelineState {
             local_provider: Arc::new(LocalWhisperProvider::new()),
             last_recording_toggle: Arc::new(Mutex::new(Instant::now())),
             typed_text_buffer: Arc::new(Mutex::new(String::new())),
+            recorder_positioned: AtomicBool::new(false),
         }
     }
 
@@ -197,19 +277,21 @@ impl PipelineState {
                 | ProcessingState::Structuring
                 | ProcessingState::Verifying
                 | ProcessingState::Inserting => {
-                    // Position at bottom center of current/primary monitor
-                    if let Ok(Some(monitor)) = recorder_win.current_monitor() {
-                        let screen_size = monitor.size();
-                        let scale = monitor.scale_factor();
-                        let win_w = (108.0 * scale) as i32;
-                        let win_h = (36.0 * scale) as i32;
-                        let x = monitor.position().x + (screen_size.width as i32 - win_w) / 2;
-                        let y = monitor.position().y + (screen_size.height as i32 - win_h) - (60.0 * scale) as i32;
-                        let _ = recorder_win.set_size(tauri::Size::Physical(tauri::PhysicalSize {
-                            width: win_w as u32,
-                            height: win_h as u32,
-                        }));
-                        let _ = recorder_win.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x, y }));
+                    // Cache floating recorder window geometry to skip redundant monitor calculations and layout changes on each state transition
+                    if !self.recorder_positioned.swap(true, Ordering::Relaxed) {
+                        if let Ok(Some(monitor)) = recorder_win.current_monitor() {
+                            let screen_size = monitor.size();
+                            let scale = monitor.scale_factor();
+                            let win_w = (108.0 * scale) as i32;
+                            let win_h = (36.0 * scale) as i32;
+                            let x = monitor.position().x + (screen_size.width as i32 - win_w) / 2;
+                            let y = monitor.position().y + (screen_size.height as i32 - win_h) - (60.0 * scale) as i32;
+                            let _ = recorder_win.set_size(tauri::Size::Physical(tauri::PhysicalSize {
+                                width: win_w as u32,
+                                height: win_h as u32,
+                            }));
+                            let _ = recorder_win.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x, y }));
+                        }
                     }
                     let _ = recorder_win.show();
                 }
@@ -228,6 +310,7 @@ impl PipelineState {
                         ) {
                             *current = ProcessingState::Idle;
                             drop(current);
+                            st.recorder_positioned.store(false, Ordering::Relaxed);
                             if let Some(w) = app_clone.get_webview_window("recorder") {
                                 let _ = w.hide();
                             }
@@ -239,6 +322,7 @@ impl PipelineState {
                     });
                 }
                 ProcessingState::Idle => {
+                    self.recorder_positioned.store(false, Ordering::Relaxed);
                     let _ = recorder_win.hide();
                 }
             }
@@ -252,6 +336,21 @@ impl PipelineState {
     }
 
     pub fn start_listening(&self, app: &AppHandle) -> Result<(), String> {
+        // Prevent starting a new recording session while previous session is actively processing or pasting
+        {
+            let current = self.current_state.lock().unwrap();
+            if matches!(
+                *current,
+                ProcessingState::Stopping
+                    | ProcessingState::Transcribing
+                    | ProcessingState::Cleaning
+                    | ProcessingState::Verifying
+                    | ProcessingState::Inserting
+            ) {
+                return Ok(());
+            }
+        }
+
         let mut lock = self.active_recorder.lock().unwrap();
         if lock.is_some() && self.is_active_recording.load(Ordering::SeqCst) {
             return Ok(());
@@ -413,15 +512,22 @@ impl PipelineState {
     }
 
     pub async fn stop_and_process(&self, app: AppHandle) -> Result<String, String> {
-        if !self.is_active_recording.load(Ordering::SeqCst) {
+        // Atomic compare-and-swap: strictly only ONE thread can claim the stop transition
+        if !self.is_active_recording.swap(false, Ordering::SeqCst) {
             return Ok(String::new());
         }
 
-        self.is_active_recording.store(false, Ordering::SeqCst);
         self.set_state(&app, ProcessingState::Stopping, None);
 
         // Allow in-flight audio callback samples to drain so the final spoken syllables are not clipped
         tokio::time::sleep(tokio::time::Duration::from_millis(80)).await;
+
+        // Check if user cancelled while audio was draining
+        if *self.current_state.lock().unwrap() == ProcessingState::Cancelled {
+            let mut lock = self.active_recorder.lock().unwrap();
+            let _ = lock.take();
+            return Ok(String::new());
+        }
 
         let recorder = {
             let mut lock = self.active_recorder.lock().unwrap();
@@ -429,7 +535,6 @@ impl PipelineState {
         };
 
         let Some(rec) = recorder else {
-            self.set_state(&app, ProcessingState::Idle, None);
             return Ok(String::new());
         };
 
@@ -503,6 +608,11 @@ impl PipelineState {
             }
         };
 
+        // Guard against ghost paste: abort immediately if dictation was cancelled during transcription
+        if *self.current_state.lock().unwrap() == ProcessingState::Cancelled {
+            return Ok(String::new());
+        }
+
         // 3. Clean
         self.set_state(&app, ProcessingState::Cleaning, None);
         let cleanup_opts = CleanupOptions {
@@ -521,7 +631,7 @@ impl PipelineState {
         };
 
         if cleaned.cleaned_text.trim().is_empty() {
-            println!("[Forge Pipeline] Cleaned text is empty (no audible speech transcribed).");
+            tracing::info!("[Forge Pipeline] Cleaned text is empty (no audible speech transcribed).");
             if start_time.elapsed().as_millis() < 400 {
                 self.set_state(&app, ProcessingState::Idle, None);
             } else {
@@ -562,6 +672,11 @@ impl PipelineState {
 
         // 6. Output into user's text box
         if can_paste {
+            // Guard against ghost paste: abort if dictation was cancelled during cleanup/verification
+            if *self.current_state.lock().unwrap() == ProcessingState::Cancelled {
+                return Ok(String::new());
+            }
+
             self.set_state(&app, ProcessingState::Inserting, None);
 
             let already_typed = {
@@ -744,5 +859,42 @@ pub fn compute_final_delta(already_typed: &str, final_transcript: &str) -> Strin
             }
         }
         String::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_settings_apply_patch() {
+        let mut settings = AppSettings::default();
+        assert_eq!(settings.provider, "groq");
+        assert_eq!(settings.hotkey, "Control+Space");
+        assert_eq!(settings.launch_at_startup, false);
+
+        let patch = SettingsPatch {
+            provider: Some("local-whisper".to_string()),
+            hotkey: Some("Control+Shift+Space".to_string()),
+            theme: Some("dark".to_string()),
+            ..Default::default()
+        };
+
+        let (hotkey_changed, autostart_changed) = settings.apply_patch(patch);
+        assert!(hotkey_changed);
+        assert!(!autostart_changed);
+        assert_eq!(settings.provider, "local-whisper");
+        assert_eq!(settings.hotkey, "Control+Shift+Space");
+        assert_eq!(settings.theme, "dark");
+
+        // Now test patch that changes launch_at_startup
+        let patch2 = SettingsPatch {
+            launch_at_startup: Some(true),
+            ..Default::default()
+        };
+        let (hotkey_changed2, autostart_changed2) = settings.apply_patch(patch2);
+        assert!(!hotkey_changed2);
+        assert!(autostart_changed2);
+        assert_eq!(settings.launch_at_startup, true);
     }
 }

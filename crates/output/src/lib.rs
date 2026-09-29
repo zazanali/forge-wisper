@@ -44,10 +44,14 @@ impl OutputEngine {
         #[cfg(target_os = "macos")]
         {
             let press_res = enigo.key(Key::Meta, Direction::Press);
+            if let Err(e) = press_res {
+                return Err(OutputError::SimulationError(e.to_string()));
+            }
+
             let click_res = enigo.key(Key::Unicode('v'), Direction::Click);
+            // GUARANTEED RELEASE: Always attempt to release Meta regardless of whether V succeeded or failed
             let release_res = enigo.key(Key::Meta, Direction::Release);
 
-            press_res.map_err(|e| OutputError::SimulationError(e.to_string()))?;
             click_res.map_err(|e| OutputError::SimulationError(e.to_string()))?;
             release_res.map_err(|e| OutputError::SimulationError(e.to_string()))?;
         }
@@ -55,10 +59,14 @@ impl OutputEngine {
         #[cfg(target_os = "windows")]
         {
             let press_res = enigo.key(Key::Control, Direction::Press);
+            if let Err(e) = press_res {
+                return Err(OutputError::SimulationError(e.to_string()));
+            }
+
             let click_res = enigo.key(Key::V, Direction::Click);
+            // GUARANTEED RELEASE: Always attempt to release Control regardless of whether V succeeded or failed
             let release_res = enigo.key(Key::Control, Direction::Release);
 
-            press_res.map_err(|e| OutputError::SimulationError(e.to_string()))?;
             click_res.map_err(|e| OutputError::SimulationError(e.to_string()))?;
             release_res.map_err(|e| OutputError::SimulationError(e.to_string()))?;
         }
@@ -66,10 +74,14 @@ impl OutputEngine {
         #[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
         {
             let press_res = enigo.key(Key::Control, Direction::Press);
+            if let Err(e) = press_res {
+                return Err(OutputError::SimulationError(e.to_string()));
+            }
+
             let click_res = enigo.key(Key::Unicode('v'), Direction::Click);
+            // GUARANTEED RELEASE: Always attempt to release Control regardless of whether V succeeded or failed
             let release_res = enigo.key(Key::Control, Direction::Release);
 
-            press_res.map_err(|e| OutputError::SimulationError(e.to_string()))?;
             click_res.map_err(|e| OutputError::SimulationError(e.to_string()))?;
             release_res.map_err(|e| OutputError::SimulationError(e.to_string()))?;
         }

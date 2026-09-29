@@ -85,10 +85,12 @@ pub fn invalidate_device_cache() {
 pub struct AudioRecorder {
     is_recording: Arc<AtomicBool>,
     audio_buffer: Arc<Mutex<Vec<f32>>>,
-    rms_level: Arc<Mutex<f32>>,
+    rms_level: Arc<std::sync::atomic::AtomicU32>,
+    sample_count: Arc<std::sync::atomic::AtomicUsize>,
     source_sample_rate: u32,
     source_channels: u16,
     _stream: cpal::Stream,
+    worker_handle: Option<std::thread::JoinHandle<()>>,
 }
 
 unsafe impl Send for AudioRecorder {}
@@ -133,11 +135,14 @@ impl AudioRecorder {
         let stream_config: StreamConfig = default_config.into();
 
         let audio_buffer = Arc::new(Mutex::new(Vec::<f32>::new()));
-        let rms_level = Arc::new(Mutex::new(0.0f32));
+        let rms_level = Arc::new(std::sync::atomic::AtomicU32::new(0));
+        let sample_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let is_recording = Arc::new(AtomicBool::new(true));
 
-        let buffer_clone = Arc::clone(&audio_buffer);
+        let (tx, rx) = std::sync::mpsc::channel::<Vec<f32>>();
+
         let rms_clone = Arc::clone(&rms_level);
+        let samples_clone = Arc::clone(&sample_count);
         let recording_clone = Arc::clone(&is_recording);
 
         let err_fn = |err| {
@@ -148,18 +153,14 @@ impl AudioRecorder {
             SampleFormat::F32 => device.build_input_stream(
                 &stream_config,
                 move |data: &[f32], _| {
-                    if recording_clone.load(Ordering::Relaxed) {
-                        let mut buf = buffer_clone.lock().unwrap();
-                        buf.extend_from_slice(data);
+                    if recording_clone.load(Ordering::Relaxed) && !data.is_empty() {
+                        let sum_sq: f32 = data.iter().map(|s| s * s).sum();
+                        let rms = (sum_sq / data.len() as f32).sqrt();
+                        rms_clone.store(rms.to_bits(), Ordering::Relaxed);
+                        samples_clone.fetch_add(data.len(), Ordering::Relaxed);
 
-                        // Compute rolling RMS level
-                        if !data.is_empty() {
-                            let sum_sq: f32 = data.iter().map(|s| s * s).sum();
-                            let rms = (sum_sq / data.len() as f32).sqrt();
-                            if let Ok(mut r) = rms_clone.lock() {
-                                *r = rms;
-                            }
-                        }
+                        // Non-blocking channel push directly from real-time OS audio thread
+                        let _ = tx.send(data.to_vec());
                     }
                 },
                 err_fn,
@@ -168,20 +169,19 @@ impl AudioRecorder {
             SampleFormat::I16 => device.build_input_stream(
                 &stream_config,
                 move |data: &[i16], _| {
-                    if recording_clone.load(Ordering::Relaxed) {
-                        let mut buf = buffer_clone.lock().unwrap();
-                        buf.extend(data.iter().map(|&s| s as f32 / i16::MAX as f32));
-
-                        if !data.is_empty() {
-                            let sum_sq: f32 = data.iter().map(|&s| {
-                                let norm = s as f32 / i16::MAX as f32;
-                                norm * norm
-                            }).sum();
-                            let rms = (sum_sq / data.len() as f32).sqrt();
-                            if let Ok(mut r) = rms_clone.lock() {
-                                *r = rms;
-                            }
+                    if recording_clone.load(Ordering::Relaxed) && !data.is_empty() {
+                        let mut float_data = Vec::with_capacity(data.len());
+                        let mut sum_sq = 0.0f32;
+                        for &s in data {
+                            let norm = s as f32 / i16::MAX as f32;
+                            sum_sq += norm * norm;
+                            float_data.push(norm);
                         }
+                        let rms = (sum_sq / data.len() as f32).sqrt();
+                        rms_clone.store(rms.to_bits(), Ordering::Relaxed);
+                        samples_clone.fetch_add(data.len(), Ordering::Relaxed);
+
+                        let _ = tx.send(float_data);
                     }
                 },
                 err_fn,
@@ -190,9 +190,19 @@ impl AudioRecorder {
             SampleFormat::U16 => device.build_input_stream(
                 &stream_config,
                 move |data: &[u16], _| {
-                    if recording_clone.load(Ordering::Relaxed) {
-                        let mut buf = buffer_clone.lock().unwrap();
-                        buf.extend(data.iter().map(|&s| (s as f32 - 32768.0) / 32768.0));
+                    if recording_clone.load(Ordering::Relaxed) && !data.is_empty() {
+                        let mut float_data = Vec::with_capacity(data.len());
+                        let mut sum_sq = 0.0f32;
+                        for &s in data {
+                            let norm = (s as f32 - 32768.0) / 32768.0;
+                            sum_sq += norm * norm;
+                            float_data.push(norm);
+                        }
+                        let rms = (sum_sq / data.len() as f32).sqrt();
+                        rms_clone.store(rms.to_bits(), Ordering::Relaxed);
+                        samples_clone.fetch_add(data.len(), Ordering::Relaxed);
+
+                        let _ = tx.send(float_data);
                     }
                 },
                 err_fn,
@@ -201,6 +211,29 @@ impl AudioRecorder {
             _ => return Err(AudioError::ConfigError("Unsupported sample format".to_string())),
         }
         .map_err(|e| AudioError::StreamError(e.to_string()))?;
+
+        // Background worker thread decoupled from real-time audio thread
+        let worker_buffer = Arc::clone(&audio_buffer);
+        let worker_recording = Arc::clone(&is_recording);
+        let worker_handle = std::thread::spawn(move || {
+            while worker_recording.load(Ordering::Relaxed) {
+                match rx.recv_timeout(Duration::from_millis(50)) {
+                    Ok(chunk) => {
+                        let mut buf = worker_buffer.lock().unwrap();
+                        buf.extend(chunk);
+                        while let Ok(more) = rx.try_recv() {
+                            buf.extend(more);
+                        }
+                    }
+                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) => continue,
+                    Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
+                }
+            }
+            while let Ok(chunk) = rx.try_recv() {
+                let mut buf = worker_buffer.lock().unwrap();
+                buf.extend(chunk);
+            }
+        });
 
         stream
             .play()
@@ -215,22 +248,22 @@ impl AudioRecorder {
             is_recording,
             audio_buffer,
             rms_level,
+            sample_count,
             source_sample_rate: sample_rate,
             source_channels: channels,
             _stream: stream,
+            worker_handle: Some(worker_handle),
         })
     }
 
+    /// Lock-free RMS readout from atomic float bits
     pub fn get_current_rms(&self) -> f32 {
-        *self.rms_level.lock().unwrap_or_else(|e| e.into_inner())
+        f32::from_bits(self.rms_level.load(Ordering::Relaxed))
     }
 
-    /// Returns the approximate duration in seconds of audio captured so far in the buffer
+    /// Returns the approximate duration in seconds of audio captured so far (lock-free)
     pub fn get_buffer_duration_secs(&self) -> f32 {
-        let sample_count = {
-            let buf = self.audio_buffer.lock().unwrap();
-            buf.len()
-        };
+        let sample_count = self.sample_count.load(Ordering::Relaxed);
         if self.source_sample_rate > 0 && self.source_channels > 0 {
             (sample_count as f32) / (self.source_sample_rate as f32 * self.source_channels as f32)
         } else {
@@ -292,8 +325,12 @@ impl AudioRecorder {
         encode_pcm16_wav(&resampled, target_sample_rate)
     }
 
-    pub fn stop_and_encode_wav(self) -> Result<Vec<u8>, AudioError> {
+    pub fn stop_and_encode_wav(mut self) -> Result<Vec<u8>, AudioError> {
         self.is_recording.store(false, Ordering::SeqCst);
+        let _ = self._stream.pause();
+        if let Some(handle) = self.worker_handle.take() {
+            let _ = handle.join();
+        }
         let mut raw_samples = self.audio_buffer.lock().unwrap().clone();
 
         // Handle empty or very short buffers gracefully
@@ -352,6 +389,16 @@ impl AudioRecorder {
 
         // Encode into 16-bit PCM WAV in memory
         encode_pcm16_wav(&resampled, target_sample_rate)
+    }
+}
+
+impl Drop for AudioRecorder {
+    fn drop(&mut self) {
+        self.is_recording.store(false, Ordering::SeqCst);
+        let _ = self._stream.pause();
+        if let Some(handle) = self.worker_handle.take() {
+            let _ = handle.join();
+        }
     }
 }
 
