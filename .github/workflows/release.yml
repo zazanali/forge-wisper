@@ -63,23 +63,22 @@ jobs:
             ## Forge Wisper Desktop Setup (${{ github.ref_name }})
             
             Download the official cross-platform installer below:
-            - 🪟 **Windows**: `Forge.Wisper_0.1.4_x64-setup.exe` (NSIS Installer)
-            - 🍎 **macOS**: `Forge.Wisper_0.1.4_aarch64.dmg` (Apple Silicon M1–M4 & Intel)
+            - 🪟 **Windows**: `Forge.Wisper_${{ github.ref_name }}_x64-setup.exe` (NSIS Installer)
+            - 🍎 **macOS**: `Forge.Wisper_${{ github.ref_name }}_aarch64.dmg` (Apple Silicon M1–M4 & Intel)
             
-            ### ✨ What's New in v0.1.4
-            - ⚡ **Zero-Latency Settings & Dropdowns**:
-              - Eliminated the 8–10 second delay when changing formatting mode, microphone, speech provider (Local Whisper / Groq Cloud), or language.
-              - Settings now change instantaneously (0ms visual latency) with optimistic UI updates and non-blocking asynchronous persistence.
-            - 🎙️ **Live Microphone Hotplug Detection**:
-              - Opening the microphone selector now dynamically re-probes audio devices so newly plugged-in USB/Bluetooth headsets appear immediately without requiring an app restart.
-            - 🎨 **Refined Dictation Header**:
-              - Streamlined the dictation card header by removing redundant duplicate format buttons, keeping the UI minimal, modern, and focused.
-            - 🌐 **Official AI NetworkX Community Branding**:
-              - Embedded the official AI NetworkX logo directly into the Community card in Settings with a clean, distraction-free footer.
-            - 🔄 **Dynamic Version & Update Status**:
-              - Integrated interactive spinning update arrows (`RefreshCw`) and automatic transition to upgrade indicator (`ArrowUpCircle`) when a new version is detected.
-            - 🛡️ **Enhanced Windows Defender Compatibility**:
-              - Registry autostart writes and Win32 global hotkey registrations are now smart-diffed and dispatched off the main thread to prevent external antivirus scan pauses.
+            ### ✨ What's New in ${{ github.ref_name }}
+            - ⚡ **NVIDIA FastConformer Parakeet ONNX Engine**:
+              - Sub-second on-device speech recognition powered by INT8 ONNX models with automated Hugging Face streaming downloader.
+            - 🔍 **Smart Hardware Detection & Compute Routing**:
+              - Dynamic hardware scanner for Vulkan GPU compute acceleration ($\ge 512\text{ MB}$ dedicated VRAM) with seamless multi-threaded AVX2 CPU fallback.
+            - 🔒 **Native Single-Instance Protection**:
+              - Enforced Win32 Named Mutex single-instance locking to prevent duplicate background instances, ghost tray icons, and shortcut conflicts.
+            - 🛡️ **Zero Console Flashing**:
+              - Strictly enforced Win32 GUI subsystem (`windows_subsystem = "windows"`) and `CREATE_NO_WINDOW` on all background child processes.
+            - 📱 **Responsive Bento Layout Redesign**:
+              - Multi-breakpoint responsive layout with collapsible navigation, real-time WPM analytics, and live LED VU level meters.
+            - 🛡️ **Hardened Security & URL Validation**:
+              - Strict URL scheme validation (`https://`, `http://`, `mailto:`) and shell metacharacter rejection on IPC command execution.
             
             *Created by Ali Zazan • Built for creators and developers.*
           releaseDraft: false
