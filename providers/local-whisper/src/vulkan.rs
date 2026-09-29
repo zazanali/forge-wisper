@@ -28,7 +28,7 @@ pub struct BackendDiagnostics {
 }
 
 #[cfg(windows)]
-#[allow(non_camel_case_types, dead_code)]
+#[allow(non_camel_case_types, dead_code, clippy::upper_case_acronyms, clippy::manual_c_str_literals)]
 mod sys {
 
     type HMODULE = *mut std::ffi::c_void;
@@ -243,9 +243,9 @@ impl VulkanManager {
                 let app_info = sys::VkApplicationInfo {
                     s_type: sys::VK_STRUCTURE_TYPE_APPLICATION_INFO,
                     p_next: std::ptr::null(),
-                    p_application_name: b"ForgeWisper\0".as_ptr(),
+                    p_application_name: c"ForgeWisper".as_ptr() as *const u8,
                     application_version: 1,
-                    p_engine_name: b"ForgeEngine\0".as_ptr(),
+                    p_engine_name: c"ForgeEngine".as_ptr() as *const u8,
                     engine_version: 1,
                     api_version: 0x00401000, // Vulkan 1.1 (header version 1.1)
                 };

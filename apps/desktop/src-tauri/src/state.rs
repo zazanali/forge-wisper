@@ -229,6 +229,12 @@ pub struct PipelineState {
     pub recorder_positioned: AtomicBool,
 }
 
+impl Default for PipelineState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PipelineState {
     pub fn new() -> Self {
         let storage = StorageEngine::new_default().unwrap_or_else(|_| StorageEngine::new_in_memory().unwrap());
@@ -824,8 +830,7 @@ pub fn compute_final_delta(already_typed: &str, final_transcript: &str) -> Strin
     }
 
     // 1. Direct character prefix match
-    if clean_final.starts_with(clean_typed) {
-        let delta = &clean_final[clean_typed.len()..];
+    if let Some(delta) = clean_final.strip_prefix(clean_typed) {
         return delta.to_string();
     }
 
@@ -871,7 +876,7 @@ mod tests {
         let mut settings = AppSettings::default();
         assert_eq!(settings.provider, "groq");
         assert_eq!(settings.hotkey, "Control+Space");
-        assert_eq!(settings.launch_at_startup, false);
+        assert!(!settings.launch_at_startup);
 
         let patch = SettingsPatch {
             provider: Some("local-whisper".to_string()),
@@ -895,6 +900,6 @@ mod tests {
         let (hotkey_changed2, autostart_changed2) = settings.apply_patch(patch2);
         assert!(!hotkey_changed2);
         assert!(autostart_changed2);
-        assert_eq!(settings.launch_at_startup, true);
+        assert!(settings.launch_at_startup);
     }
 }

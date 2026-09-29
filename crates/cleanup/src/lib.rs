@@ -5,18 +5,13 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use thiserror::Error;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum FormattingMode {
     Raw,
     Clean,
     Structured,
+    #[default]
     Smart,
-}
-
-impl Default for FormattingMode {
-    fn default() -> Self {
-        Self::Smart
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

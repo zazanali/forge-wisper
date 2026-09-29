@@ -322,12 +322,22 @@ pub fn get_backend_status(
 
 #[tauri::command]
 pub fn open_url(url: String) -> Result<(), String> {
+    let trimmed = url.trim();
+    if !trimmed.starts_with("https://") && !trimmed.starts_with("http://") && !trimmed.starts_with("mailto:") {
+        return Err("Blocked unsafe URL: Only http, https, and mailto URLs are permitted".to_string());
+    }
+
+    // Ensure no control characters or shell injection tokens exist
+    if trimmed.chars().any(|c| c.is_control() || c == '"' || c == '\'' || c == '`' || c == '&' || c == '|' || c == ';' || c == '<' || c == '>') {
+        return Err("Blocked unsafe URL: Contains forbidden shell metacharacters".to_string());
+    }
+
     #[cfg(target_os = "windows")]
     {
         use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         std::process::Command::new("cmd")
-            .args(["/C", "start", "", &url])
+            .args(["/C", "start", "", trimmed])
             .creation_flags(CREATE_NO_WINDOW)
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
@@ -337,14 +347,14 @@ pub fn open_url(url: String) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
         std::process::Command::new("open")
-            .arg(&url)
+            .arg(trimmed)
             .spawn()
             .map_err(|e| e.to_string())?;
     }
     #[cfg(target_os = "linux")]
     {
         std::process::Command::new("xdg-open")
-            .arg(&url)
+            .arg(trimmed)
             .spawn()
             .map_err(|e| e.to_string())?;
     }

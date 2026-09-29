@@ -34,20 +34,15 @@ impl std::fmt::Display for ModelFormat {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ComputeBackend {
+    #[default]
     Cpu,
     VulkanGpu {
         device_name: String,
         device_index: u32,
     },
-}
-
-impl Default for ComputeBackend {
-    fn default() -> Self {
-        Self::Cpu
-    }
 }
 
 impl std::fmt::Display for ComputeBackend {
@@ -171,7 +166,7 @@ impl Transcript {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ProviderCapabilities {
     pub supports_local: bool,
     pub supports_cloud: bool,
@@ -182,20 +177,6 @@ pub struct ProviderCapabilities {
     pub supported_families: Vec<ModelFamily>,
     #[serde(default)]
     pub supported_backends: Vec<ComputeBackend>,
-}
-
-impl Default for ProviderCapabilities {
-    fn default() -> Self {
-        Self {
-            supports_local: false,
-            supports_cloud: false,
-            supported_languages: Vec::new(),
-            available_models: Vec::new(),
-            requires_api_key: false,
-            supported_families: Vec::new(),
-            supported_backends: Vec::new(),
-        }
-    }
 }
 
 #[derive(Debug, Error)]

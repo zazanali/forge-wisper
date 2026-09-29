@@ -73,6 +73,12 @@ pub struct ModelManager {
     active_downloads: Arc<Mutex<HashMap<String, ModelDownloadProgress>>>,
 }
 
+impl Default for ModelManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ModelManager {
     pub fn new() -> Self {
         let models_dir = Self::resolve_models_dir();

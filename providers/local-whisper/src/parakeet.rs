@@ -509,7 +509,8 @@ impl TranscriptionProvider for LocalParakeetProvider {
             }
             Err(_) => {
                 // If not a standard WAV header, attempt reading as raw 16-bit PCM little-endian
-                if audio.wav_bytes.len() % 2 == 0 {
+                if audio.wav_bytes.len().is_multiple_of(2) {
+                    #[allow(clippy::chunks_exact_to_as_chunks)]
                     audio
                         .wav_bytes
                         .chunks_exact(2)

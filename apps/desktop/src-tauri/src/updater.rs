@@ -268,10 +268,12 @@ pub fn launch_installer_and_exit(installer_path: &str) -> Result<(), String> {
 
         // Run the installer completely silently in the background (/S),
         // wait for it to complete copying files, and automatically relaunch Forge Wisper.
+        let safe_path = path.to_string_lossy().replace('\'', "''");
+        let safe_exe = current_exe.to_string_lossy().replace('\'', "''");
         let ps_cmd = format!(
             "Start-Sleep -Seconds 1; Start-Process -FilePath '{}' -ArgumentList '/S' -Wait; Start-Process -FilePath '{}'",
-            path.display(),
-            current_exe.display()
+            safe_path,
+            safe_exe
         );
 
         let _ = std::process::Command::new("powershell")

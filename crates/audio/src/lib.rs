@@ -417,7 +417,7 @@ fn resample_linear(input: &[f32], src_rate: u32, target_rate: u32) -> Vec<f32> {
 
     if ratio > 1.0 {
         // Downsampling with box-filter anti-aliasing area integration
-        let window_half = (ratio * 0.5) as f64;
+        let window_half = ratio * 0.5;
         for i in 0..target_len {
             let center = i as f64 * ratio;
             let start = (center - window_half).max(0.0);
@@ -428,8 +428,8 @@ fn resample_linear(input: &[f32], src_rate: u32, target_rate: u32) -> Vec<f32> {
 
             let mut sum = 0.0f32;
             let mut count = 0.0f32;
-            for idx in start_idx..=end_idx.min(input.len() - 1) {
-                sum += input[idx];
+            for &sample in &input[start_idx..=end_idx.min(input.len() - 1)] {
+                sum += sample;
                 count += 1.0;
             }
             if count > 0.0 {

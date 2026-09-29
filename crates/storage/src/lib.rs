@@ -7,18 +7,13 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum RetentionPolicy {
     Forever,
+    #[default]
     Days30,
     Days7,
     Off,
-}
-
-impl Default for RetentionPolicy {
-    fn default() -> Self {
-        Self::Days30
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
