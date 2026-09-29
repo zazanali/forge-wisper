@@ -107,6 +107,12 @@ pnpm build
 - **Bug Reports**: Please include your OS version, hardware specs, whether you're using Groq or Local Whisper, and clear reproduction steps.
 - **Feature Requests**: Describe the problem you're trying to solve and your proposed solution or UI behavior.
 
+## 👥 Contributors
+
+- **Ali Zazan** ([@zazanali](https://github.com/zazanali)) - Creator & Core Architecture
+- **Ihtisham Hussain** ([@ihtisham-code](https://github.com/ihtisham-code)) - Native macOS Support & Packaging
+- **Arsalan Khan** ([@TechnicalExpo](https://github.com/TechnicalExpo)) - Parakeet Model Family & GPU Support
+
 ---
 
 ## 📄 License
